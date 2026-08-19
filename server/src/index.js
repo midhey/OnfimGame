@@ -53,7 +53,16 @@ function serveStatic(req, res) {
   let file = path.join(DIST, url === '/' ? 'index.html' : url);
   if (!file.startsWith(DIST)) file = path.join(DIST, 'index.html');
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(DIST, 'index.html');
-  const body = fs.readFileSync(file);
+  /* Клиент мог не собраться (упавший деплой) — отвечаем понятно, а не падаем */
+  let body;
+  try {
+    body = fs.readFileSync(file);
+  } catch {
+    res.writeHead(503, { 'Content-Type': MIME['.html'] });
+    res.end('<meta charset="utf-8"><body style="font:16px system-ui;padding:24px">' +
+      '<h1>Клиент собирается</h1><p>Сборка не завершена. Обновите страницу через минуту.</p></body>');
+    return;
+  }
   res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
   res.end(body);
 }

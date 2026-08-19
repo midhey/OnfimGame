@@ -17,15 +17,18 @@
 # ============================================================================
 set -euo pipefail
 
-APP=/opt/smena
+APP=${SMENA_APP:-/opt/smena}
 ENV_FILE=/etc/smena.env
 say() { printf '\033[32m>> %s\033[0m\n' "$*"; }
 die() { printf '\033[31m!! %s\033[0m\n' "$*" >&2; exit 1; }
 
 # ---------------------------------------------------------------- --update
 if [ "${1:-}" = "--update" ]; then
-  exec 9>/var/lock/smena-update
-  flock -n 9 || exit 0
+  # один апдейт за раз; на системах без flock просто идём дальше
+  if command -v flock >/dev/null 2>&1; then
+    exec 9>"${TMPDIR:-/tmp}/smena-update.lock"
+    flock -n 9 || exit 0
+  fi
   cd "$APP"
   BRANCH_NOW="$(git rev-parse --abbrev-ref HEAD)"
   git fetch -q origin "$BRANCH_NOW"
@@ -34,11 +37,19 @@ if [ "${1:-}" = "--update" ]; then
   [ "$LOCAL" = "$REMOTE" ] && exit 0
   say "обновление: $LOCAL -> $REMOTE"
   git reset --hard "origin/$BRANCH_NOW"
-  npm install --no-audit --no-fund
-  npm run build
+  if npm install --no-audit --no-fund && npm run build; then
+    systemctl restart smena
+    say "обновлено и перезапущено: $REMOTE"
+    exit 0
+  fi
+  # Сборка упала: возвращаем последнюю рабочую версию, иначе Vite уже вычистил
+  # dist и сайт остался бы без клиента. Следующий тик попробует снова.
+  say "СБОРКА УПАЛА — откат на $LOCAL, следующая попытка через минуту"
+  git reset --hard "$LOCAL"
+  npm install --no-audit --no-fund || true
+  npm run build || true
   systemctl restart smena
-  say "обновлено и перезапущено"
-  exit 0
+  exit 1
 fi
 
 # ---------------------------------------------------------------- установка
@@ -180,4 +191,7 @@ echo "   табло:    $URL_NOW/#/board"
 echo "   ведущий:  $URL_NOW/#/host"
 echo "   пароль ведущего: $PASS_NOW   (лежит в $ENV_FILE)"
 echo "   деплой: git push — сервер подтянет сам в течение минуты"
+echo "   на время мероприятия автообновление лучше выключить:"
+echo "     systemctl stop smena-update.timer     (обратно: start)"
+echo "   перезапуск обнуляет идущие занятия — состояние живёт в памяти"
 [ -n "$DOMAIN" ] && echo "   HTTPS заработает, когда A-запись $DOMAIN укажет на этот сервер"
