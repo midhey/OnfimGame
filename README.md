@@ -56,7 +56,69 @@ npm run serve     # собрать клиент и раздавать всё с 
 
 ## Развёртывание на VPS
 
-Быстрый путь — скрипт (нужен ssh-доступ; на Windows запускать из Git Bash):
+### GitHub + автодеплой (основной путь)
+
+Один раз на чистом Ubuntu (под root), подставив свой репозиторий и домен:
+
+```bash
+REPO=https://github.com/midhey/onfimgame DOMAIN=smena.example.ru bash <(curl -fsSL https://raw.githubusercontent.com/midhey/onfimgame/master/vps-setup.sh)
+```
+
+Скрипт ставит git и Node 22, клонирует репозиторий в /opt/smena, собирает клиент,
+заводит службу smena, ставит Caddy с автоматическим HTTPS для домена и включает
+smena-update.timer: раз в минуту сервер сверяется с GitHub — новый коммит в main
+подтягивается, собирается и перезапускается сам (ветка — та, что склонирована). То есть **git push = деплой**,
+никаких секретов не нужно. Пароль ведущего генерируется и печатается в конце
+(и лежит в /etc/smena.env).
+
+CI в GitHub Actions (.github/workflows/ci.yml) на каждый пуш собирает клиент и
+гоняет 36 проверок сценарного теста. Если добавить секреты VPS_HOST, VPS_USER,
+VPS_SSH_KEY — после зелёных тестов деплой дёргается по ssh мгновенно, не дожидаясь
+таймера. Без секретов pipeline всё равно зелёный, деплоит таймер.
+
+Без домена (просто по IP): не указывайте DOMAIN — приложение встанет на 80 порт
+по http. Репозиторий должен быть публичным (или добавьте deploy key на VPS).
+
+### Если с рабочего компьютера нет ssh на VPS
+
+SSH на сервер не нужен вообще — есть три пути, все через браузер:
+
+1. **Cloud-init при создании VPS.** В панели провайдера при заказе сервера есть
+   поле «user data» / «cloud-init». Вставьте туда (подставив домен):
+
+   ```yaml
+   #cloud-config
+   runcmd:
+     - curl -fsSL https://raw.githubusercontent.com/midhey/onfimgame/master/vps-setup.sh -o /root/vps-setup.sh
+     - REPO=https://github.com/midhey/onfimgame DOMAIN=smena.example.ru bash /root/vps-setup.sh
+   ```
+
+   Сервер настроит себя сам при первой загрузке. Пароль ведущего останется
+   в /etc/smena.env — его покажет любой из путей ниже, либо задайте свой:
+   добавьте строку `SMENA_HOST_PASS=вашпароль` перед `bash` во второй команде.
+
+2. **Кнопка в GitHub Actions.** Добавьте секреты (см. ниже), затем
+   Actions → setup-vps → Run workflow, впишите домен. Раннер GitHub сам зайдёт
+   на сервер и всё поставит; адреса и пароль ведущего появятся в сводке запуска.
+
+3. **Веб-консоль провайдера.** У любого VPS в панели есть браузерная консоль —
+   вставьте туда команду установки из начала этого раздела.
+
+### Секреты для Actions (Settings → Secrets and variables → Actions)
+
+| Секрет | Что класть | Зачем |
+|---|---|---|
+| `VPS_HOST` | IP или домен сервера | setup-vps и мгновенный деплой |
+| `VPS_PASSWORD` | root-пароль от провайдера (из письма/панели) | самый простой вариант входа |
+| `VPS_SSH_KEY` | приватный ключ (альтернатива паролю) | если ключ удобнее |
+| `VPS_USER` | необязательно, по умолчанию root | |
+
+Секреты нужны только для кнопки setup-vps и мгновенного деплоя. Обычный деплой
+работает без них: сервер сам подтягивает новые коммиты раз в минуту.
+
+### Вручную со своей машины
+
+Скрипт (нужен ssh-доступ; на Windows запускать из Git Bash):
 
 ```bash
 ./deploy.sh root@vps.example.ru
@@ -88,7 +150,7 @@ Description=Smena game
 After=network.target
 
 [Service]
-WorkingDirectory=/opt/smena/web
+WorkingDirectory=/opt/smena
 Environment=PORT=8787
 Environment=SMENA_HOST_PASS=вашпароль
 Environment=SMENA_URL=https://smena.example.ru

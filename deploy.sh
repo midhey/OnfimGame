@@ -6,7 +6,7 @@
 #       ./deploy.sh user@vps.example.ru            # зальёт в /opt/smena и запустит
 #       ./deploy.sh user@vps.example.ru /srv/smena # свой путь
 #
-#   Прямо на сервере (из папки web):
+#   Прямо на сервере (из папки проекта):
 #       ./deploy.sh --local
 #
 #   Переменные (необязательно, действуют при первом деплое и обновляют env):
