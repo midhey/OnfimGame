@@ -218,6 +218,9 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
 .host .dname{font-size:clamp(16px,2vw,22px)}
 .host .dbar{height:14px; border-radius:7px}
 .host .dsub{font-size:clamp(11px,1.4vw,14px)}
+@media (prefers-reduced-motion: no-preference){
+  .drow.rise{animation:blin .5s cubic-bezier(.2,.7,.2,1) backwards}
+}
 
 /* объявление нового инцидента */
 .splash{
@@ -263,6 +266,15 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
 .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:10px}
 .card h2{font-size:16px; margin:0 0 10px; display:flex; justify-content:space-between; gap:10px; align-items:baseline}
 .card h2 .st{font:400 11px var(--mono); color:var(--muted); text-transform:uppercase; letter-spacing:.05em}
+/* название команды правится на месте */
+.tname{
+  font:600 16px/1.3 var(--sans); color:var(--ink); background:none; border:0;
+  border-bottom:1px dashed var(--line); padding:2px 2px; margin:0; min-width:0; max-width:100%;
+  text-align:left; cursor:text;
+}
+.tname.btnlike{border-bottom-color:transparent; cursor:pointer}
+.tname.btnlike:hover{border-bottom-color:var(--line)}
+.tname:focus{outline:none; border-bottom-color:var(--accent)}
 .seat{display:flex; align-items:center; gap:10px; width:100%; text-align:left; min-height:46px;
       padding:8px 10px; margin-bottom:6px; background:var(--bg); border:1px solid var(--line);
       border-radius:10px; font:inherit; color:inherit; cursor:pointer}
@@ -334,3 +346,144 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
 .card .stat .num{color:var(--ink)}
 .card .stat .num.low{color:var(--alert)}
 .card .stat .u{color:var(--muted)}
+
+/* ============================ ТАБЛО (общий экран) ============================
+   На всю ширину, ровно в один экран, без прокрутки. Размеры в vw/vh, чтобы
+   и четыре команды, и десять влезали на проектор. */
+.bd{
+  width:100vw; height:100vh; height:100dvh; overflow:hidden;
+  display:flex; flex-direction:column; background:var(--bg);
+}
+.bhd{
+  flex:0 0 auto; display:flex; align-items:center; gap:clamp(8px,1.5vw,22px);
+  background:var(--accent); color:#fff; padding:clamp(6px,1vh,14px) clamp(12px,1.6vw,26px);
+}
+.bhd .bt{
+  font:600 clamp(10px,1.05vw,16px)/1.3 var(--mono); letter-spacing:.06em;
+  text-transform:uppercase; color:rgba(255,255,255,.92); white-space:nowrap;
+}
+.bhd .bt i{font-style:normal; opacity:.5; margin:0 .5em}
+.bhd .right{margin-left:auto; color:rgba(255,255,255,.75)}
+.bhd .brounds{display:flex; gap:5px; flex:0 0 auto}
+.bhd .brounds i{
+  display:block; width:clamp(22px,3vw,54px); height:5px; border-radius:3px;
+  background:rgba(255,255,255,.28);
+}
+.bhd .brounds i.on{background:#fff}
+.bd .dot{background:#fff}
+.bd .dot.off{background:#FFB0BB}
+
+.bmain{
+  flex:1 1 auto; min-height:0; display:flex; flex-direction:column; justify-content:center;
+  gap:clamp(8px,1.6vh,26px); padding:clamp(10px,2vh,30px) clamp(12px,1.8vw,34px);
+}
+
+/* --- лобби --- */
+.bmain.lobby{justify-content:flex-start}
+.bjoin{text-align:center; flex:0 0 auto}
+.bjoin .bk{font:600 clamp(10px,1vw,15px)/1.3 var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
+.bjoin .bcode{font:700 clamp(44px,9vh,120px)/1 var(--mono); letter-spacing:.1em; color:var(--accent); margin:.1em 0}
+.bjoin .burl{font:600 clamp(13px,1.5vw,26px)/1.3 var(--mono); color:var(--ink)}
+.dotstrip.mid{margin-left:auto; margin-right:auto}
+
+.bseats{display:flex; flex-direction:column; gap:clamp(3px,.5vh,7px)}
+.bseat{
+  font:600 clamp(10px,1.1vw,17px)/1.3 var(--sans); padding:clamp(4px,.7vh,9px) clamp(6px,.7vw,12px);
+  border-radius:7px; background:var(--bg); border:1px solid var(--line); border-left:3px solid var(--line);
+  color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.bseat.on{color:var(--ink)}
+.bseat.c0{border-left-color:var(--r0)}
+.bseat.c1{border-left-color:var(--r1)}
+.bseat.c2{border-left-color:var(--r2)}
+
+/* --- таймер раунда --- */
+.btimer{
+  flex:0 0 auto; text-align:center; color:var(--accent);
+  font:700 clamp(40px,13vh,150px)/1 var(--mono); letter-spacing:.04em;
+}
+.btimer.low{color:var(--alert)}
+
+/* --- плитки команд --- */
+.bteams{
+  flex:1 1 auto; min-height:0; display:grid; align-content:center;
+  grid-template-columns:repeat(var(--cols,4), minmax(0, 1fr));
+  gap:clamp(6px,1.1vh,18px) clamp(6px,1vw,18px);
+}
+.btile{
+  min-width:0; background:var(--card); border:1px solid var(--line);
+  border-radius:clamp(8px,1vw,16px); padding:clamp(8px,1.3vh,18px) clamp(10px,1.1vw,20px);
+  display:flex; flex-direction:column; gap:clamp(4px,.7vh,10px);
+}
+.btile.lead{border-color:var(--accent); box-shadow:0 0 0 2px rgba(0,122,101,.16)}
+.btile.done{background:var(--r1soft)}
+.btrow{display:flex; align-items:baseline; gap:.5em; min-width:0}
+.bpos{font:700 clamp(14px,1.5vw,26px)/1 var(--mono); color:var(--muted)}
+.btile.lead .bpos{color:var(--accent)}
+.btname{
+  font:600 clamp(14px,1.5vw,28px)/1.2 var(--sans);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+
+/* шаги инцидента — точками, без полосы */
+.bsteps{display:flex; gap:clamp(4px,.6vw,10px); align-items:center}
+.bstep{
+  flex:1 1 0; height:clamp(8px,1.3vh,18px); border-radius:99px;
+  background:var(--plate); border:1px solid var(--line);
+}
+.bstep.on.s0{background:var(--r0); border-color:var(--r0)}
+.bstep.on.s1{background:var(--r1); border-color:var(--r1)}
+.bstep.on.s2{background:var(--r2); border-color:var(--r2)}
+.bstep.now.s0{border-color:var(--r0); box-shadow:inset 0 0 0 2px var(--r0)}
+.bstep.now.s1{border-color:var(--r1); box-shadow:inset 0 0 0 2px var(--r1)}
+.bstep.now.s2{border-color:var(--r2); box-shadow:inset 0 0 0 2px var(--r2)}
+
+.bmeta{
+  font:600 clamp(9px,.95vw,14px)/1.35 var(--mono); letter-spacing:.04em;
+  text-transform:uppercase; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.bmeta i{font-style:normal; opacity:.5; margin:0 .4em}
+.bnums{display:flex; gap:clamp(8px,1vw,20px); margin-top:auto}
+.bnums span{display:flex; flex-direction:column; font:400 clamp(8px,.85vw,12px)/1.3 var(--mono);
+  letter-spacing:.04em; text-transform:uppercase; color:var(--muted)}
+.bnums b{font:700 clamp(15px,1.9vw,32px)/1.1 var(--mono); color:var(--ink)}
+.bnums b.low{color:var(--alert)}
+
+/* --- лидерборд: только он, раскрывается снизу вверх --- */
+.blb{
+  flex:1 1 auto; min-height:0; display:grid; align-content:center;
+  grid-template-rows:repeat(var(--rows,4), minmax(0, auto));
+  gap:clamp(5px,1vh,16px);
+}
+.blrow{
+  display:flex; align-items:center; gap:clamp(8px,1.4vw,26px);
+  background:var(--card); border:1px solid var(--line); border-left:4px solid var(--line);
+  border-radius:clamp(8px,.9vw,14px); padding:clamp(7px,1.4vh,20px) clamp(10px,1.4vw,26px);
+}
+.blrow.top{border-left-color:var(--accent); background:var(--r1soft)}
+.blpos{flex:0 0 auto; min-width:1.6em; text-align:center;
+  font:700 clamp(20px,3.4vh,46px)/1 var(--mono); color:var(--muted)}
+.blrow.top .blpos{color:var(--accent)}
+.blname{flex:1 1 auto; min-width:0; font:600 clamp(16px,2.6vh,38px)/1.2 var(--sans);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.blname em{font:600 clamp(9px,1vh,13px)/1 var(--mono); font-style:normal; text-transform:uppercase;
+  letter-spacing:.05em; color:var(--alert); margin-left:.7em}
+.blbar{flex:0 1 22%; height:clamp(8px,1.4vh,18px); border-radius:99px; background:var(--plate); overflow:hidden}
+.blbar i{display:block; height:100%; border-radius:99px; background:var(--accent)}
+.blnum{flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; min-width:3.4em;
+  font:700 clamp(16px,2.6vh,36px)/1.05 var(--mono); color:var(--ink)}
+.blnum em{font:400 clamp(8px,.95vh,12px)/1.4 var(--mono); font-style:normal;
+  letter-spacing:.05em; text-transform:uppercase; color:var(--muted)}
+
+@media (prefers-reduced-motion: no-preference){
+  /* команды меняются местами плавно */
+  .flip-move{transition:transform .6s cubic-bezier(.2,.7,.2,1)}
+  .flip-enter-active, .flip-leave-active{transition:opacity .3s ease}
+  .flip-enter-from, .flip-leave-to{opacity:0}
+  .bstep{transition:background-color .35s ease, border-color .35s ease, box-shadow .35s ease}
+  .blbar i{transition:width .8s cubic-bezier(.2,.7,.2,1)}
+  .blrow{animation:blin .5s cubic-bezier(.2,.7,.2,1) backwards}
+  @keyframes blin{from{opacity:0; transform:translateY(26px)}}
+  .bstep.now{animation:bpulse 1.6s ease-in-out infinite}
+  @keyframes bpulse{50%{opacity:.45}}
+}

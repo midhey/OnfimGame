@@ -10,16 +10,12 @@ const mySeat = computed(() => {
   const team = x.teams.find((t) => t.id === x.you.teamId);
   return team ? { team, role: x.you.role } : null;
 });
-const anySeated = computed(() => v.value.teams.some((t) => t.players > 0));
 
 function take(teamId, role) {
   send({ t: 'seat', teamId, role });
 }
 function drop() {
   send({ t: 'unseat' });
-}
-function start() {
-  send({ t: 'host:start' });
 }
 </script>
 
@@ -38,7 +34,6 @@ function start() {
         <p v-else class="hint">
           {{ mySeat.team.name }} · {{ v.roles[mySeat.role].job }}
           <template v-if="v.phase !== 'lobby'"><br>Смена уже идёт, сейчас откроется ваш раунд.</template>
-          <template v-else-if="v.you.canHost"><br>Ведущего нет — смену начинаете сами, кнопка ниже.</template>
           <template v-else><br>Ждём ведущего: сначала разминка, потом три раунда на время.</template>
         </p>
       </div>
@@ -60,15 +55,8 @@ function start() {
       </div>
     </div>
     <div class="act">
-      <template v-if="v.you.canHost && v.phase === 'lobby'">
-        <div class="ask" style="text-align:center">Ведущего нет — смену начинаете сами</div>
-        <button class="btn primary" :disabled="!anySeated" @click="start">Начать смену</button>
-        <button v-if="mySeat" class="btn ghost small mt" @click="drop">Освободить роль</button>
-      </template>
-      <template v-else>
-        <button v-if="mySeat" class="btn ghost" @click="drop">Освободить роль</button>
-        <div v-else class="ask" style="text-align:center">Выберите роль в любой команде</div>
-      </template>
+      <button v-if="mySeat" class="btn ghost" @click="drop">Освободить роль</button>
+      <div v-else class="ask" style="text-align:center">Выберите роль в любой команде</div>
     </div>
   </div>
 </template>

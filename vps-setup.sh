@@ -86,7 +86,14 @@ if [ ! -f "$ENV_FILE" ]; then
 else
   say "$ENV_FILE уже есть — пароль не трогаю"
   [ -n "${SMENA_HOST_PASS:-}" ] && sed -i "s|^SMENA_HOST_PASS=.*|SMENA_HOST_PASS=$SMENA_HOST_PASS|" "$ENV_FILE"
-  [ -n "$DOMAIN" ] && sed -i "s|^SMENA_URL=.*|SMENA_URL=https://$DOMAIN|" "$ENV_FILE"
+  # порт всегда по режиму: с доменом за Caddy — 8787, без домена — 80
+  sed -i "s|^PORT=.*|PORT=$PORT|" "$ENV_FILE"
+  grep -q '^PORT=' "$ENV_FILE" || echo "PORT=$PORT" >> "$ENV_FILE"
+  if [ -n "$DOMAIN" ]; then
+    sed -i "s|^SMENA_URL=.*|SMENA_URL=https://$DOMAIN|" "$ENV_FILE"
+  else
+    sed -i "s|^SMENA_URL=.*|SMENA_URL=http://$(hostname -I | awk '{print $1}')|" "$ENV_FILE"
+  fi
 fi
 
 say "служба smena"

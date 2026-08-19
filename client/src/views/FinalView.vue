@@ -39,7 +39,7 @@ const times = (n) => {
         </template>
       </div>
       <div class="mt">
-        <RankBars :rows="v.rating || []" :my-team="v.you.teamId" :max="v.combatTotal" />
+        <RankBars :rows="v.rating || []" :my-team="v.you.teamId" :max="v.combatTotal" reveal />
         <RatingTable :rows="v.rating || []" :my-team="v.you.teamId" :deltas="false" />
         <div class="legend">уточнения · доверие · банк минут · инциденты</div>
       </div>

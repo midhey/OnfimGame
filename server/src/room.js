@@ -54,6 +54,19 @@ export class Room {
     return team;
   }
 
+  /* Переименовать команду можно в любой момент — это только ярлык */
+  renameTeam(teamId, name) {
+    const team = this.team(teamId);
+    if (!team) return 'Команда не найдена';
+    const clean = String(name || '').trim().slice(0, 24);
+    if (!clean) return 'Пустое название';
+    if (this.teams.some((t) => t !== team && t.name === clean)) return 'Такая команда уже есть';
+    const was = team.name;
+    team.name = clean;
+    this.log('переименована из «' + was + '»', clean);
+    return null;
+  }
+
   /* Убрать можно только пустую команду и только в лобби */
   removeTeam(teamId) {
     if (this.phase !== 'lobby') return 'Команды меняют только в лобби';
@@ -295,6 +308,8 @@ export class Room {
 
   teamCard(team) {
     const r = this.round();
+    const inc = r ? r.incidents[team.incIndex] : null;
+    const chain = inc ? stepsOf(inc) : [];
     return {
       id: team.id,
       name: team.name,
@@ -310,6 +325,8 @@ export class Room {
       incIndex: team.incIndex,
       incTotal: r ? r.incidents.length : 0,
       step: team.step,
+      stepTotal: chain.length,
+      stepRoles: chain.map((s) => s.role),
       roundDone: team.roundDone,
       cut: team.cutByTimer,
       status: this.teamStatus(team)

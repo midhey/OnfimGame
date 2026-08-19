@@ -948,7 +948,7 @@ export const ROUNDS = [
     title: 'Разминка',
     trial: true,
     budget: 60,
-    minutes: 6,
+    minutes: 4,
     incidents: [TRIAL_PRINTER]
   },
   {
@@ -956,7 +956,7 @@ export const ROUNDS = [
     title: 'Раунд 1 · Утро',
     trial: false,
     budget: 320,
-    minutes: 15,
+    minutes: 10,
     incidents: [INC_SCALES, INC_CERT, INC_PASSES, INC_NIGHT]
   },
   {
@@ -964,7 +964,7 @@ export const ROUNDS = [
     title: 'Раунд 2 · День',
     trial: false,
     budget: 320,
-    minutes: 15,
+    minutes: 10,
     incidents: [INC_SLOW, INC_MAIL, INC_DOUBLE, INC_WALKER]
   },
   {
@@ -972,7 +972,7 @@ export const ROUNDS = [
     title: 'Раунд 3 · Вечер',
     trial: false,
     budget: 320,
-    minutes: 15,
+    minutes: 10,
     incidents: [INC_DISK, INC_FELL, INC_IVANOVA, INC_BACKUP]
   }
 ];

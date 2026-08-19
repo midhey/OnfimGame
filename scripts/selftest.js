@@ -136,18 +136,39 @@ async function main() {
   const tids = host.state.teams.map((t) => t.id);
   ok(new Set(tids).size === tids.length, 'id команд не дублируются');
 
+  host.send({ t: 'host:renameTeam', teamId: 't1', name: 'Ночная смена' });
+  await host.until((c) => c.state.teams[0].name === 'Ночная смена', 'команда переименована');
+  host.errors = [];
+  host.send({ t: 'host:renameTeam', teamId: 't2', name: 'Ночная смена' });
+  await wait(120);
+  ok(host.errors.some((e) => e.includes('уже есть')), 'дубль названия отклонён');
+  ps[0].errors = [];
+  ps[0].send({ t: 'host:renameTeam', teamId: 't1', name: 'Взлом' });
+  await wait(120);
+  ok(ps[0].errors.some((e) => e.includes('ведущий')), 'игрок команды не переименовывает');
+  ok(host.state.teams[0].name === 'Ночная смена', 'название не изменилось от игрока');
+
+  /* --- занятием управляет только ведущий --- */
+  ps[0].errors = [];
+  ps[0].send({ t: 'host:start' });
+  await wait(120);
+  ok(ps[0].errors.some((e) => e.includes('ведущий')), 'игрок не может начать смену: «' + ps[0].errors[0] + '»');
+  ok(host.state.phase === 'lobby', 'смена так и не началась от игрока');
+
   /* --- табло --- */
   const board = client('табло');
   await board.open;
   board.send({ t: 'board:watch', code });
   await board.until((c) => c.state && c.state.t === 'board', 'табло подключилось');
   ok(board.state.phase === 'lobby' && board.state.teams.length >= 4, 'табло видит лобби и команды');
+  ok(board.state.you === null, 'табло без личности игрока');
 
   /* --- разминка --- */
   host.send({ t: 'host:start' });
   await ps[0].until((c) => c.state.phase === 'round', 'старт смены');
   ok(host.state.round.trial === true, 'первый раунд — разминка');
   ok(!!host.state.roundEndsAt && host.state.roundEndsAt > Date.now(), 'реальный таймер раунда идёт');
+  ok(host.state.round.minutes <= 10, 'таймер раунда не длиннее 10 минут: ' + host.state.round.minutes);
   ok(team(ps[0]).options && team(ps[0]).options.length === 3, 'у менеджера три варианта');
 
   /* жёсткие роли: чужой ход и пустая роль */
@@ -204,6 +225,10 @@ async function main() {
   ok(feedText(ps[1]).includes('задвоения по вторым весам') || feedText(ps[1]).includes('Не проходят временные пропуска') ||
      feedText(ps[1]).includes('сертификат'), 'заявка пришла словами менеджера');
   ok(host.state.phase === 'round', 'барьер держит раунд: вторая команда ещё играет');
+  const bteam = board.state.teams.find((t) => t.players > 0);
+  ok(Array.isArray(bteam.stepRoles) && bteam.stepRoles.length === bteam.stepTotal,
+    'табло знает роли по шагам: ' + JSON.stringify(bteam.stepRoles));
+  ok(typeof bteam.step === 'number' && bteam.step <= bteam.stepTotal, 'табло знает текущий шаг');
 
   /* --- ведущий закрывает раунд досрочно --- */
   const trustBefore = team(solo).trust;
@@ -213,7 +238,7 @@ async function main() {
   const soloRow = host.state.rating.find((r) => r.name === 'Смена Б');
   ok(soloRow.cut === true, 'недоигравшая команда помечена «не успели»');
   ok(soloRow.trust === Math.max(0, trustBefore - 1), 'штраф доверия за незакрытые заявки: ' + trustBefore + ' → ' + soloRow.trust);
-  ok(host.state.rating[0].name === 'Смена А', 'полностью отыгравшая команда выше: ' +
+  ok(host.state.rating[0].teamId === 't1', 'полностью отыгравшая команда выше: ' +
     host.state.rating.map((r) => r.rank + '.' + r.name + ' a' + r.asks).join(' '));
   ok(!!host.state.truth, 'разбор «на самом деле» есть у ведущего');
   ok(!!host.state.logs && host.state.logs.length > 5, 'логи занятия пишутся: ' + (host.state.logs || []).length + ' строк');

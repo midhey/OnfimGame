@@ -97,7 +97,8 @@ function pushRoom(room) {
   }
 }
 
-const HOST_ONLY = new Set(['host:start', 'host:end', 'host:next', 'host:reset', 'host:addTeam', 'host:removeTeam', 'host:extend']);
+const HOST_ONLY = new Set(['host:start', 'host:end', 'host:next', 'host:reset',
+  'host:addTeam', 'host:removeTeam', 'host:renameTeam', 'host:extend']);
 
 wss.on('connection', (ws) => {
   ws.playerId = null;
@@ -184,8 +185,8 @@ wss.on('connection', (ws) => {
     if (!room) return fail(ws, 'Вы не в занятии');
     const player = room.players.get(ws.playerId);
     if (!player) return fail(ws, 'Вы не в занятии');
-    /* пока ведущий на связи — занятием управляет только он */
-    if (HOST_ONLY.has(t) && !player.isHost && room.hasHost()) {
+    /* занятием управляет только ведущий: игроки раунды не открывают */
+    if (HOST_ONLY.has(t) && !player.isHost) {
       return fail(ws, 'Это может только ведущий');
     }
 
@@ -226,6 +227,9 @@ wss.on('connection', (ws) => {
         break;
       case 'host:removeTeam':
         err = room.removeTeam(String(msg.teamId));
+        break;
+      case 'host:renameTeam':
+        err = room.renameTeam(String(msg.teamId), msg.name);
         break;
       default:
         return;

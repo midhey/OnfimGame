@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { S, send, leave, timerLeft, fmtTimer } from '../store.js';
 import RatingTable from '../components/RatingTable.vue';
 import RankBars from '../components/RankBars.vue';
@@ -21,6 +21,21 @@ const lastRound = computed(() => v.value.roundIndex >= v.value.roundsTotal - 1);
 
 const go = (t) => send({ t });
 const removeTeam = (teamId) => send({ t: 'host:removeTeam', teamId });
+const vFocus = { mounted: (el) => { el.focus(); el.select(); } };
+const editing = ref(null);   // id команды, название которой правим
+const draft = ref('');
+
+function startRename(team) {
+  editing.value = team.id;
+  draft.value = team.name;
+}
+function saveRename() {
+  const id = editing.value;
+  if (!id) return;
+  const name = draft.value.trim();
+  editing.value = null;
+  if (name) send({ t: 'host:renameTeam', teamId: id, name });
+}
 const extend = () => send({ t: 'host:extend', sec: 120 });
 function reset() {
   if (confirm('Сбросить занятие в лобби? Все очки команд обнулятся.')) send({ t: 'host:reset' });
@@ -63,7 +78,12 @@ function endRound() {
             <div class="grid">
               <div v-for="team in v.teams" :key="team.id" class="card">
                 <h2>
-                  {{ team.name }}
+                  <input v-if="editing === team.id" class="tname" v-model="draft"
+                         maxlength="24" @keyup.enter="saveRename" @blur="saveRename"
+                         @keyup.esc="editing = null" v-focus>
+                  <button v-else class="tname btnlike" @click="startRename(team)" title="Переименовать">
+                    {{ team.name }}
+                  </button>
                   <span class="st">
                     {{ team.status }}
                     <button v-if="!team.players" class="lnk" @click="removeTeam(team.id)">убрать</button>

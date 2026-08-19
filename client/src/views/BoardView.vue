@@ -1,22 +1,41 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { S, watchBoard, timerLeft, fmtTimer } from '../store.js';
-import RankBars from '../components/RankBars.vue';
 
 const v = computed(() => (S.view && S.view.t === 'board' ? S.view : null));
 const code = ref(S.me.boardCode || '');
 const live = computed(() => S.conn === 'live');
 const digits = computed(() => code.value.replace(/\D/g, '').slice(0, 4));
 const left = computed(() => timerLeft());
-const active = computed(() => (v.value ? v.value.teams.filter((t) => t.players > 0) : []));
+
+/* Команды на табло стоят по очкам и меняются местами прямо в раунде:
+   уточнения -> доверие -> минуты. Порядок анимирует TransitionGroup. */
+const ranked = computed(() => {
+  if (!v.value) return [];
+  return v.value.teams
+    .filter((t) => t.players > 0)
+    .slice()
+    .sort((a, b) => b.asks - a.asks || b.trust - a.trust || b.time - a.time);
+});
+
+/* Лидерборд раскрывается снизу вверх: последнему месту — нулевая задержка */
+const leaders = computed(() => (v.value && v.value.rating ? v.value.rating : []));
+const revealDelay = (i) => {
+  const n = leaders.value.length;
+  const step = Math.min(0.45, 2.7 / Math.max(n - 1, 1));
+  return ((n - 1 - i) * step).toFixed(2) + 's';
+};
 
 const label = computed(() => {
   const x = v.value;
   if (!x) return '';
   if (x.phase === 'lobby') return 'Ждём команды';
   if (x.phase === 'final') return 'Итоги смены';
-  const name = x.round ? (x.round.trial ? 'Разминка' : 'Раунд ' + x.roundIndex + ' из ' + (x.roundsTotal - 1)) : '';
-  return x.phase === 'rating' ? 'Рейтинг · ' + name.toLowerCase() : name;
+  if (!x.round) return '';
+  if (x.phase === 'rating') {
+    return x.round.trial ? 'Итоги разминки' : 'Итоги раунда ' + x.roundIndex;
+  }
+  return x.round.trial ? 'Разминка' : 'Раунд ' + x.roundIndex + ' из ' + (x.roundsTotal - 1);
 });
 
 function watch() {
@@ -33,7 +52,7 @@ function watch() {
         <div class="kicker">Общий экран</div>
         <h1>Табло занятия</h1>
         <p class="hint">
-          Этот экран выводят на проектор: команды, прогресс раунда, таймер и рейтинг.
+          Этот экран выводят на проектор: команды, прогресс раунда, таймер и лидерборд.
           Здесь никто не играет — только смотрят.
         </p>
       </div>
@@ -48,109 +67,82 @@ function watch() {
     </div>
   </div>
 
-  <!-- само табло -->
-  <div v-else class="app wide host board">
-    <header class="top">
-      <div class="prog">
-        <span class="p">Смена · занятие {{ v.code }} · {{ label }}</span>
-        <span class="p"><span class="dot" :class="{ off: S.conn !== 'live' }"></span>{{ v.joinUrl }}</span>
-      </div>
-      <div class="bars" v-if="v.phase !== 'lobby'">
-        <span v-for="i in v.roundsTotal" :key="i" :class="{ on: i <= v.roundIndex + 1 }"></span>
-      </div>
+  <!-- само табло: на всю ширину, в один экран, без прокрутки -->
+  <div v-else class="bd">
+    <header class="bhd">
+      <span class="bt">Смена<i>·</i>занятие {{ v.code }}<i>·</i>{{ label }}</span>
+      <span class="brounds" v-if="v.phase !== 'lobby'">
+        <i v-for="i in v.roundsTotal" :key="i" :class="{ on: i <= v.roundIndex + 1 }"></i>
+      </span>
+      <span class="bt right"><span class="dot" :class="{ off: S.conn !== 'live' }"></span>{{ v.joinUrl }}</span>
     </header>
 
-    <div class="view">
-      <!-- гигантский таймер во время раунда -->
-      <div v-if="v.phase === 'round'" class="btimer" :class="{ low: left !== null && left < 60 }">
+    <!-- ЛОББИ: код и составы -->
+    <main v-if="v.phase === 'lobby'" class="bmain lobby">
+      <div class="bjoin">
+        <div class="bk">Код занятия</div>
+        <div class="bcode">{{ v.code }}</div>
+        <div class="dotstrip mid" aria-hidden="true"></div>
+        <div class="burl">{{ v.joinUrl }}</div>
+      </div>
+      <div class="bteams" :style="{ '--cols': Math.min(v.teams.length, 5) }">
+        <div v-for="team in v.teams" :key="team.id" class="btile">
+          <div class="btname">{{ team.name }}</div>
+          <div class="bseats">
+            <span v-for="(seat, r) in team.seats" :key="r" class="bseat" :class="['c' + r, { on: !!seat }]">
+              {{ seat ? seat.name : '—' }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- РАУНД: таймер, команды по очкам, шаги точками -->
+    <main v-else-if="v.phase === 'round'" class="bmain">
+      <div class="btimer" :class="{ low: left !== null && left < 60 }">
         {{ left !== null ? fmtTimer(left) : '' }}
       </div>
-
-      <!-- лобби: код крупно -->
-      <template v-if="v.phase === 'lobby'">
-        <div class="center">
-          <div class="kicker">Код занятия</div>
-          <div class="code">{{ v.code }}</div>
-          <p class="big">{{ v.joinUrl }}</p>
-          <div class="dotstrip mid" aria-hidden="true"></div>
+      <TransitionGroup name="flip" tag="div" class="bteams live" :style="{ '--cols': Math.min(ranked.length, 5) }">
+        <div v-for="(team, i) in ranked" :key="team.id" class="btile" :class="{ lead: i === 0, done: team.roundDone }">
+          <div class="btrow">
+            <span class="bpos">{{ i + 1 }}</span>
+            <span class="btname">{{ team.name }}</span>
+          </div>
+          <div class="bsteps">
+            <span v-for="(role, s) in team.stepRoles" :key="s"
+                  class="bstep"
+                  :class="['s' + role, {
+                    on: s < team.step || team.roundDone,
+                    now: s === team.step && !team.roundDone
+                  }]"></span>
+          </div>
+          <div class="bmeta">
+            <template v-if="team.roundDone">{{ team.cut ? 'не успели' : 'раунд отыгран' }}</template>
+            <template v-else>инцидент {{ Math.min(team.incIndex + 1, team.incTotal) }} из {{ team.incTotal }}<i>·</i>{{ team.status }}</template>
+          </div>
+          <div class="bnums">
+            <span><b>{{ team.asks }}</b>уточн.</span>
+            <span><b :class="{ low: team.trust <= 2 }">{{ team.trust }}</b>доверие</span>
+            <span><b>{{ team.time }}</b>мин</span>
+          </div>
         </div>
-      </template>
+      </TransitionGroup>
+    </main>
 
-      <!-- команды -->
-      <div v-if="v.phase === 'lobby' || v.phase === 'round'" class="grid">
-        <div v-for="team in (v.phase === 'lobby' ? v.teams : active)" :key="team.id" class="card">
-          <h2>{{ team.name }}<span class="st">{{ team.status }}</span></h2>
-          <template v-if="v.phase === 'round'">
-            <div class="pbar big">
-              <span v-for="i in team.incTotal" :key="i"
-                    :class="{ on: i <= team.incIndex + (team.roundDone && !team.cut ? 1 : 0),
-                              half: !team.roundDone && i === team.incIndex + 1 }"></span>
-            </div>
-            <div class="stats">
-              <div class="stat"><div class="k">Минуты</div><div class="v"><span class="num">{{ team.time }}</span></div></div>
-              <div class="stat"><div class="k">Доверие</div><div class="v"><span class="num" :class="{ low: team.trust <= 2 }">{{ team.trust }}</span></div></div>
-              <div class="stat"><div class="k">Уточнения</div><div class="v"><span class="num">{{ team.asks }}</span></div></div>
-            </div>
-          </template>
-          <template v-else>
-            <div class="bseats">
-              <span v-for="(seat, r) in team.seats" :key="r" class="bseat" :class="['c' + r, { on: !!seat }]">
-                {{ seat ? seat.name : '·' }}
-              </span>
-            </div>
-          </template>
+    <!-- ИТОГИ РАУНДА И СМЕНЫ: только лидерборд, снизу вверх -->
+    <main v-else class="bmain">
+      <div class="blb" :style="{ '--rows': Math.max(leaders.length, 1) }">
+        <div v-for="(r, i) in leaders" :key="r.teamId"
+             class="blrow" :class="{ top: r.rank === 1 }"
+             :style="{ animationDelay: revealDelay(i) }">
+          <span class="blpos">{{ r.rank }}</span>
+          <span class="blname">{{ r.name }}<em v-if="r.cut">не успели</em></span>
+          <span class="blbar"><i :style="{ width: Math.max(3, Math.round(100 * r.asks / Math.max(v.combatTotal, 1))) + '%' }"></i></span>
+          <span class="blnum">{{ r.asks }}<em>уточнений</em></span>
+          <span class="blnum">{{ r.trust }}<em>доверие</em></span>
+          <span class="blnum">{{ r.bank }}<em>минут</em></span>
         </div>
       </div>
-
-      <!-- рейтинг и итоги -->
-      <template v-if="v.phase === 'rating' || v.phase === 'final'">
-        <template v-if="v.truth">
-          <div class="truth mb">
-            <div class="tl">На самом деле &middot; {{ v.truth.title }}</div>
-            <p>{{ v.truth.text }}</p>
-          </div>
-        </template>
-        <RankBars :rows="v.rating || []" :max="v.combatTotal" />
-        <div class="tblwrap">
-        <table class="tbl">
-          <thead>
-            <tr><th>#</th><th>Команда</th><th>Уточнения</th><th>Доверие</th><th>Минуты</th><th>Инциденты</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="r in v.rating || []" :key="r.teamId">
-              <td>{{ r.rank }}</td>
-              <td>{{ r.name }}<span v-if="r.cut" class="d bad">не успели</span></td>
-              <td>{{ r.asks }}</td>
-              <td>{{ r.trust }}</td>
-              <td>{{ r.bank }}</td>
-              <td>{{ r.incDone }}</td>
-            </tr>
-          </tbody>
-        </table>
-        </div>
-        <div class="legend">уточнения · доверие из {{ v.maxTrust }} · банк игровых минут · закрытые инциденты</div>
-      </template>
-    </div>
+    </main>
   </div>
 </template>
-
-<style scoped>
-.center{text-align:center; margin-bottom:18px}
-.dotstrip.mid{margin-left:auto; margin-right:auto}
-.foot{text-align:center; margin-top:6px}
-.foot .lnk{display:inline-block; text-decoration:underline}
-.btimer{
-  text-align:center; font:700 clamp(56px, 12vw, 128px)/1 var(--mono);
-  letter-spacing:.04em; margin:4px 0 18px; color:var(--accent);
-}
-.btimer.low{color:var(--alert)}
-.bseats{display:flex; flex-direction:column; gap:6px}
-.bseat{
-  font:600 13px/1.3 var(--sans); padding:7px 10px; border-radius:8px;
-  background:var(--bg); border:1px solid var(--line); color:var(--muted);
-}
-.bseat.on{color:var(--ink); border-left-width:3px}
-.bseat.c0{border-left:3px solid var(--r0)}
-.bseat.c1{border-left:3px solid var(--r1)}
-.bseat.c2{border-left:3px solid var(--r2)}
-</style>
