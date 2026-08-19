@@ -34,7 +34,7 @@ const pct = computed(() => (r) => {
         <div class="dbar"><span :style="{ width: pct(r) + '%' }"></span></div>
         <div class="dsub">
           уточнений {{ r.asks }} из {{ max }} &middot; доверие {{ r.trust }} &middot;
-          банк {{ r.bank }} &middot; инцидентов {{ r.incDone }}
+          запас {{ r.bank }} мин &middot; инцидентов {{ r.incDone }}
         </div>
       </div>
     </div>

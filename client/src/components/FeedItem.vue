@@ -28,7 +28,7 @@ const trustChip = (dr) => (dr < 0 ? '−' : '+') + Math.abs(dr) + ' ' + (Math.ab
     :class="['r' + it.role, { live: it.id === liveId, done: !!it.result }]">
     <header class="khd">
       <span v-if="it.situation.type === 'chat'">Ход {{ it.roleGen }}</span>
-      <span v-else-if="it.situation.type === 'prompt'">Ход {{ it.roleGen }} &middot; продолжение</span>
+      <span v-else-if="it.situation.type === 'prompt'">Ход {{ it.roleGen }} &middot; {{ it.situation.back ? 'по замечаниям тестировщика' : 'закрытие' }}</span>
       <span v-else>Заявка {{ it.situation.no }} &middot; {{ it.situation.status }} &middot; {{ it.roleName }}</span>
       <span>{{ it.situation.at }}</span>
     </header>

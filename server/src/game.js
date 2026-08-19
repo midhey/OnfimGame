@@ -1,8 +1,8 @@
 /* Правила одной команды внутри раунда. Ни сети, ни сессий — только
    «что происходит, когда роль выбрала вариант».
 
-   Раунд — серия инцидентов. Каждый инцидент: менеджер → инженер →
-   тестировщик, потом «на самом деле», потом карточка шума и следующий
+   Раунд — серия инцидентов. Каждый инцидент: менеджер → разработчик →
+   тестировщик → разработчик → менеджер, потом «на самом деле», потом карточка шума и следующий
    инцидент. Лента чистится на старте каждого раунда. */
 import { NOISE, ROLES, RULES } from './data.js';
 
@@ -26,12 +26,12 @@ export function newTeam(id, name) {
     /* сквозные очки занятия */
     trust: RULES.startTrust,
     asks: 0,
-    bank: 0,            // накопленный остаток игровых минут за закрытые раунды
+    bank: 0,            // запас: накопленный остаток минут за закрытые раунды
     incDone: 0,         // закрытых боевых инцидентов за занятие
     /* состояние текущего раунда */
     time: 0,            // игровые минуты раунда
     incIndex: 0,        // какой инцидент раунда идёт
-    step: 0,            // 0 менеджер, 1 инженер, 2 тестировщик
+    step: 0,            // номер шага в цепочке инцидента
     clock: 0,
     managerPick: null,
     feed: [],
@@ -79,15 +79,21 @@ function push(team, item) {
   return item;
 }
 
-/* Цепочка шагов инцидента. Боевые: пять шагов, разминка: три. */
+/* Цепочка шагов инцидента — круг разработки:
+   менеджер -> разработчик -> тестировщик -> разработчик -> менеджер.
+   Боевые инциденты пятишаговые, разминка трёхшаговая. */
 export function stepsOf(inc) {
   const chain = [
     { role: 0, kind: 'chat', options: inc.manager.options },
-    { role: 1, kind: 'ticket', options: inc.engineer.options }
+    { role: 1, kind: 'ticket', options: inc.engineer.options },
+    { role: 2, kind: 'ticket', options: inc.tester.options }
   ];
-  if (inc.engineerFix) chain.push({ role: 1, kind: 'prompt', prompt: inc.engineerFix.prompt, options: inc.engineerFix.options });
-  chain.push({ role: 2, kind: 'ticket', options: inc.tester.options });
-  if (inc.managerClose) chain.push({ role: 0, kind: 'prompt', prompt: inc.managerClose.prompt, options: inc.managerClose.options });
+  if (inc.engineerFix) {
+    chain.push({ role: 1, kind: 'prompt', back: true, prompt: inc.engineerFix.prompt, options: inc.engineerFix.options });
+  }
+  if (inc.managerClose) {
+    chain.push({ role: 0, kind: 'prompt', prompt: inc.managerClose.prompt, options: inc.managerClose.options });
+  }
   return chain;
 }
 export const stepOptions = (inc, step) => stepsOf(inc)[step].options;
@@ -111,7 +117,7 @@ function pushIncHeader(team, round) {
   });
 }
 
-/* Карточка хода. Менеджеру — сообщение с площадки, инженеру и
+/* Карточка хода. Менеджеру — сообщение с площадки, разработчику и
    тестировщику — заявка в формулировке менеджера. */
 function pushTurn(team, round) {
   const inc = curIncident(round, team);
@@ -134,7 +140,7 @@ function pushTurn(team, round) {
       at: fmtClock(team.clock)
     };
   } else if (def.kind === 'prompt') {
-    card.situation = { type: 'prompt', text: def.prompt, at: fmtClock(team.clock) };
+    card.situation = { type: 'prompt', text: def.prompt, back: !!def.back, at: fmtClock(team.clock) };
   } else {
     const pick = team.managerPick === null ? 0 : team.managerPick;
     card.situation = {
@@ -187,12 +193,12 @@ function closeRound(team, round, incidentFinished) {
 }
 
 /* Раунд закрыт реальным таймером, команда не успела. Недоигранные
-   инциденты сгорают, остаток игрового времени не банкуется. */
+   инциденты сгорают, остаток минут не идёт в запас. */
 export function cutRound(team, round) {
   if (team.roundDone) return false;
   team.cutByTimer = true;
   team.roundDone = true;
-  team.trust = clamp(team.trust - RULES.lateTrustPenalty, 0, RULES.maxTrust);
+  team.trust = clamp(team.trust - RULES.lateTrustPenalty, RULES.minTrust, RULES.maxTrust);
   push(team, { kind: 'plate', text: 'Время раунда вышло. Незакрытые заявки — минус доверие' });
   team.history.push({
     round: team.startedRound,
@@ -223,7 +229,7 @@ export function applyPick(team, round, k, isTrial) {
   card.action = { text: opt.label, at: fmtClock(team.clock) };
   team.clock += Math.abs(opt.time || 0);
   team.time = Math.max(0, team.time + (opt.time || 0));
-  team.trust = clamp(team.trust + (opt.trust || 0), 0, RULES.maxTrust);
+  team.trust = clamp(team.trust + (opt.trust || 0), RULES.minTrust, RULES.maxTrust);
   if (step === 0) {
     team.managerPick = k;
     if (opt.asks) team.asks++;
@@ -274,7 +280,7 @@ export function applyPick(team, round, k, isTrial) {
   return done;
 }
 
-/* Рейтинг занятия: уточнения → доверие → банк игровых минут. */
+/* Рейтинг занятия: уточнения → доверие → запас минут. */
 export function rating(teams) {
   const rows = teams.map((t) => {
     const h = t.history;

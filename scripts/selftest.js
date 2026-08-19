@@ -168,14 +168,15 @@ async function main() {
   await ps[0].until((c) => c.state.phase === 'round', 'старт смены');
   ok(host.state.round.trial === true, 'первый раунд — разминка');
   ok(!!host.state.roundEndsAt && host.state.roundEndsAt > Date.now(), 'реальный таймер раунда идёт');
-  ok(host.state.round.minutes <= 10, 'таймер раунда не длиннее 10 минут: ' + host.state.round.minutes);
+  ok(host.state.round.minutes <= 7, 'таймер раунда не длиннее 7 минут: ' + host.state.round.minutes);
   ok(team(ps[0]).options && team(ps[0]).options.length === 3, 'у менеджера три варианта');
 
   /* жёсткие роли: чужой ход и пустая роль */
   ps[1].errors = [];
   ps[1].send({ t: 'pick', k: 0 });
   await wait(120);
-  ok(ps[1].errors.some((e) => e.includes('ход')), 'инженер не может ходить за менеджера: «' + ps[1].errors[0] + '»');
+  ok(ps[1].errors.some((e) => e.includes('ход')), 'разработчик не может ходить за менеджера: «' + ps[1].errors[0] + '»');
+  ok(host.state.roles[1].name === 'Разработчик', 'вторая роль — разработчик');
 
   const before = host.state.roundEndsAt;
   host.send({ t: 'host:extend', sec: 120 });
@@ -209,16 +210,20 @@ async function main() {
   solo.errors = [];
   solo.send({ t: 'pick', k: 0 });
   await wait(120);
-  ok(solo.errors.some((e) => e.includes('свободна')), 'за пустого инженера ходить нельзя: «' + solo.errors[0] + '»');
+  ok(solo.errors.some((e) => e.includes('свободна')), 'за пустого разработчика ходить нельзя: «' + solo.errors[0] + '»');
   ok(team(solo).turnFree === true, 'клиенту видно, что роль свободна');
   solo.send({ t: 'seat', teamId: 't2', role: 1 });
-  await solo.until((c) => c.state.you.role === 1 && team(c).yourTurn, 'Гриша пересел на инженера');
+  await solo.until((c) => c.state.you.role === 1 && team(c).yourTurn, 'Гриша пересел на разработчика');
   solo.send({ t: 'pick', k: 1 });
-  await solo.until((c) => team(c).step === 2, 'диагноз инженера сделан');
-  ok(team(solo).turnRole === 1 && team(solo).yourTurn, 'у инженера второй шаг подряд — «что чинить»');
+  await solo.until((c) => team(c).step === 2, 'разработчик отработал задачу');
+  ok(team(solo).turnRole === 2, 'после разработчика ход тестировщика');
   ok(team(solo).stepTotal === 5, 'в боевом инциденте пять шагов');
+  ok(team(solo).turnFree === true, 'роль тестировщика ещё свободна');
+  solo.send({ t: 'seat', teamId: 't2', role: 2 });
+  await solo.until((c) => c.state.you.role === 2 && team(c).yourTurn, 'Гриша пересел на тестировщика');
   solo.send({ t: 'pick', k: 1 });
-  await solo.until((c) => team(c).step === 3, 'починка выбрана');
+  await solo.until((c) => team(c).step === 3, 'тестировщик вернул задачу');
+  ok(team(solo).turnRole === 1, 'задача вернулась разработчику на доработку');
 
   /* --- заявка словами менеджера + барьер --- */
   await playRound(ps, () => 1);
@@ -271,9 +276,12 @@ async function main() {
   ok(host.state.phase === 'final', 'смена дошла до итогов, итераций ' + guard);
   const fin = host.state.rating;
   out.push('Итоги: ' + fin.map((r) =>
-    `${r.rank}. ${r.name} — уточнений ${r.asks}/${host.state.combatTotal}, доверие ${r.trust}, банк ${r.bank}, инцидентов ${r.incDone}`
+    `${r.rank}. ${r.name} — уточнений ${r.asks}/${host.state.combatTotal}, доверие ${r.trust}, запас ${r.bank}, инцидентов ${r.incDone}`
   ).join(' | '));
   ok(fin.every((r) => r.asks <= host.state.combatTotal), 'уточнения в пределах боевых инцидентов');
+  ok(fin.every((r) => r.trust >= -host.state.maxTrust && r.trust <= host.state.maxTrust),
+    'доверие в границах ±' + host.state.maxTrust + ': ' + fin.map((r) => r.trust).join(', '));
+  ok(fin.some((r) => r.trust < 0), 'доверие умеет уходить в минус: ' + fin.map((r) => r.name + ' ' + r.trust).join(', '));
   ok(fin[0].asks >= fin[1].asks, 'сортировка по уточнениям');
   ok(board.state.phase === 'final', 'табло видит итоги');
 

@@ -9,7 +9,7 @@ const digits = computed(() => code.value.replace(/\D/g, '').slice(0, 4));
 const left = computed(() => timerLeft());
 
 /* Команды на табло стоят по очкам и меняются местами прямо в раунде:
-   уточнения -> доверие -> минуты. Порядок анимирует TransitionGroup. */
+   уточнения -> доверие -> запас минут. Порядок анимирует TransitionGroup. */
 const ranked = computed(() => {
   if (!v.value) return [];
   return v.value.teams
@@ -25,6 +25,8 @@ const revealDelay = (i) => {
   const step = Math.min(0.45, 2.7 / Math.max(n - 1, 1));
   return ((n - 1 - i) * step).toFixed(2) + 's';
 };
+const barWidth = (r) =>
+  Math.max(3, Math.round((100 * r.asks) / Math.max(v.value.combatTotal, 1))) + '%';
 
 const label = computed(() => {
   const x = v.value;
@@ -67,7 +69,7 @@ function watch() {
     </div>
   </div>
 
-  <!-- само табло: на всю ширину, в один экран, без прокрутки -->
+  <!-- само табло: один экран, без прокрутки, команды колонкой -->
   <div v-else class="bd">
     <header class="bhd">
       <span class="bt">Смена<i>·</i>занятие {{ v.code }}<i>·</i>{{ label }}</span>
@@ -97,51 +99,52 @@ function watch() {
       </div>
     </main>
 
-    <!-- РАУНД: таймер, команды по очкам, шаги точками -->
+    <!-- РАУНД: таймер и команды колонкой, места меняются на ходу -->
     <main v-else-if="v.phase === 'round'" class="bmain">
       <div class="btimer" :class="{ low: left !== null && left < 60 }">
         {{ left !== null ? fmtTimer(left) : '' }}
       </div>
-      <TransitionGroup name="flip" tag="div" class="bteams live" :style="{ '--cols': Math.min(ranked.length, 5) }">
-        <div v-for="(team, i) in ranked" :key="team.id" class="btile" :class="{ lead: i === 0, done: team.roundDone }">
-          <div class="btrow">
-            <span class="bpos">{{ i + 1 }}</span>
-            <span class="btname">{{ team.name }}</span>
-          </div>
-          <div class="bsteps">
-            <span v-for="(role, s) in team.stepRoles" :key="s"
-                  class="bstep"
-                  :class="['s' + role, {
-                    on: s < team.step || team.roundDone,
-                    now: s === team.step && !team.roundDone
-                  }]"></span>
-          </div>
-          <div class="bmeta">
+      <TransitionGroup name="flip" tag="div" class="brows" :style="{ '--rows': Math.max(ranked.length, 1) }">
+        <div v-for="(team, i) in ranked" :key="team.id"
+             class="brow" :class="{ top: i === 0, fin: team.roundDone }">
+          <span class="bpos">{{ i + 1 }}</span>
+          <span class="bname">{{ team.name }}</span>
+          <span class="bsteps">
+            <i v-for="(role, s) in team.stepRoles" :key="s"
+               :class="['bstep', 's' + role, {
+                 on: s < team.step || team.roundDone,
+                 now: s === team.step && !team.roundDone
+               }]"></i>
+          </span>
+          <span class="bstate">
             <template v-if="team.roundDone">{{ team.cut ? 'не успели' : 'раунд отыгран' }}</template>
-            <template v-else>инцидент {{ Math.min(team.incIndex + 1, team.incTotal) }} из {{ team.incTotal }}<i>·</i>{{ team.status }}</template>
-          </div>
-          <div class="bnums">
-            <span><b>{{ team.asks }}</b>уточн.</span>
-            <span><b :class="{ low: team.trust <= 2 }">{{ team.trust }}</b>доверие</span>
-            <span><b>{{ team.time }}</b>мин</span>
-          </div>
+            <template v-else>инцидент {{ Math.min(team.incIndex + 1, team.incTotal) }}/{{ team.incTotal }}<i>·</i>{{ team.status }}</template>
+          </span>
+          <span class="bnum"><b>{{ team.asks }}</b><em>уточнений</em></span>
+          <span class="bnum"><b :class="{ low: team.trust <= 2, neg: team.trust < 0 }">{{ team.trust }}</b><em>доверие</em></span>
+          <span class="bnum"><b>{{ team.time }}</b><em>запас минут</em></span>
         </div>
       </TransitionGroup>
     </main>
 
-    <!-- ИТОГИ РАУНДА И СМЕНЫ: только лидерборд, снизу вверх -->
+    <!-- ИТОГИ: только лидерборд, раскрывается снизу вверх -->
     <main v-else class="bmain">
-      <div class="blb" :style="{ '--rows': Math.max(leaders.length, 1) }">
+      <div class="brows" :style="{ '--rows': Math.max(leaders.length, 1) }">
         <div v-for="(r, i) in leaders" :key="r.teamId"
-             class="blrow" :class="{ top: r.rank === 1 }"
+             class="brow lb" :class="{ top: r.rank === 1 }"
              :style="{ animationDelay: revealDelay(i) }">
-          <span class="blpos">{{ r.rank }}</span>
-          <span class="blname">{{ r.name }}<em v-if="r.cut">не успели</em></span>
-          <span class="blbar"><i :style="{ width: Math.max(3, Math.round(100 * r.asks / Math.max(v.combatTotal, 1))) + '%' }"></i></span>
-          <span class="blnum">{{ r.asks }}<em>уточнений</em></span>
-          <span class="blnum">{{ r.trust }}<em>доверие</em></span>
-          <span class="blnum">{{ r.bank }}<em>минут</em></span>
+          <span class="bpos">{{ r.rank }}</span>
+          <span class="bname">{{ r.name }}<em v-if="r.cut">не успели</em></span>
+          <span class="bbar"><i :style="{ width: barWidth(r) }"></i></span>
+          <span class="bnum"><b>{{ r.asks }}</b><em>уточнений</em></span>
+          <span class="bnum"><b :class="{ neg: r.trust < 0 }">{{ r.trust }}</b><em>доверие</em></span>
+          <span class="bnum"><b>{{ r.bank }}</b><em>запас минут</em></span>
         </div>
+      </div>
+      <div class="bnote">
+        уточнения — сколько раз спросили, прежде чем делать &middot;
+        доверие бизнеса от {{ -v.maxTrust }} до {{ v.maxTrust }} &middot;
+        запас минут — сколько времени смены сберегли
       </div>
     </main>
   </div>

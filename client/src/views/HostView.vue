@@ -115,7 +115,7 @@ function endRound() {
                 </div>
                 <div class="stats">
                   <div class="stat"><div class="k">Минуты</div><div class="v"><span class="num">{{ team.time }}</span></div></div>
-                  <div class="stat"><div class="k">Доверие</div><div class="v"><span class="num" :class="{ low: team.trust <= 2 }">{{ team.trust }}</span></div></div>
+                  <div class="stat"><div class="k">Доверие</div><div class="v"><span class="num" :class="{ low: team.trust <= 2 && team.trust >= 0, neg: team.trust < 0 }">{{ team.trust }}</span></div></div>
                   <div class="stat"><div class="k">Уточнения</div><div class="v"><span class="num">{{ team.asks }}</span></div></div>
                 </div>
               </div>
@@ -135,7 +135,7 @@ function endRound() {
             <RankBars :rows="v.rating || []" :max="v.combatTotal" />
             <RatingTable :rows="v.rating || []" :deltas="v.phase === 'rating' && !(v.round && v.round.trial)" />
             <div class="legend">
-              уточнения — сколько раз менеджер сначала спросил · доверие из {{ v.maxTrust }} · банк игровых минут · закрытые инциденты
+              уточнения — сколько раз менеджер сначала спросил · доверие от {{ -v.maxTrust }} до {{ v.maxTrust }} · запас минут · закрытые инциденты
             </div>
             <p v-if="v.phase === 'rating'" class="hint mt">
               Разберите вслух: что было на самом деле и какой вопрос сэкономил бы время. Потом следующий раунд.

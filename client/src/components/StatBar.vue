@@ -29,7 +29,7 @@ const role = computed(() => {
   <header class="top">
     <div class="stats">
       <div class="stat">
-        <div class="k">Минуты раунда</div>
+        <div class="k">Запас минут</div>
         <div class="v">
           <span class="num">{{ team && v.phase !== 'lobby' ? team.time : '—' }}</span><span class="u">мин</span>
         </div>
@@ -37,7 +37,7 @@ const role = computed(() => {
       <div class="stat">
         <div class="k">Доверие</div>
         <div class="v">
-          <span class="num" :class="{ low: team && team.trust <= 2 }">{{ team ? team.trust : '—' }}</span>
+          <span class="num" :class="{ low: team && team.trust <= 2 && team.trust >= 0, neg: team && team.trust < 0 }">{{ team ? team.trust : '—' }}</span>
           <span class="u">/ {{ v.maxTrust }}</span>
         </div>
       </div>

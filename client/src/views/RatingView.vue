@@ -24,13 +24,13 @@ const trial = computed(() => v.value.round && v.value.round.trial);
         </p>
         <p v-else-if="mine" class="hint">
           Считается по уточнениям: сколько раз менеджер сначала спросил, а потом делал.
-          При равных — по доверию, потом по банку минут.
+          При равных — по доверию, потом по запасу минут.
         </p>
       </div>
 
 
       <RankBars :rows="v.rating || []" :my-team="v.you.teamId" :max="v.combatTotal" reveal />
-      <div class="legend">уточнения &middot; доверие из {{ v.maxTrust }} &middot; банк игровых минут</div>
+      <div class="legend">уточнения &middot; доверие &middot; запас минут — сколько времени смены сберегли</div>
     </div>
     <div class="act">
       <div class="wait">

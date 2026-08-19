@@ -28,20 +28,20 @@ const times = (n) => {
           </p>
           <p class="fl">
             Доверие бизнеса: <b class="mono">{{ mine.trust }} из {{ v.maxTrust }}</b> ·
-            банк минут: <b class="mono">{{ mine.bank }}</b> ·
+            запас минут: <b class="mono">{{ mine.bank }}</b> ·
             закрыто инцидентов: <b class="mono">{{ mine.incDone }} из {{ v.combatTotal }}</b>
           </p>
           <div class="board">
             <div class="bc">Место в занятии</div>
             <div class="bl">{{ mine.rank }} из {{ (v.rating || []).length }}</div>
-            <div class="bg">{{ mine.asks }}/{{ v.combatTotal }} · доверие {{ mine.trust }}/{{ v.maxTrust }} · банк {{ mine.bank }}</div>
+            <div class="bg">{{ mine.asks }}/{{ v.combatTotal }} · доверие {{ mine.trust }}/{{ v.maxTrust }} · запас {{ mine.bank }}</div>
           </div>
         </template>
       </div>
       <div class="mt">
         <RankBars :rows="v.rating || []" :my-team="v.you.teamId" :max="v.combatTotal" reveal />
         <RatingTable :rows="v.rating || []" :my-team="v.you.teamId" :deltas="false" />
-        <div class="legend">уточнения · доверие · банк минут · инциденты</div>
+        <div class="legend">уточнения · доверие · запас минут · инциденты</div>
       </div>
     </div>
     <div class="act">
