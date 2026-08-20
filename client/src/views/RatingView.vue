@@ -17,20 +17,20 @@ const trial = computed(() => v.value.round && v.value.round.trial);
         <div class="kicker">
           {{ trial ? 'После разминки' : 'После раунда ' + v.roundIndex + ' из ' + (v.roundsTotal - 1) }}
         </div>
-        <h1 v-if="mine">{{ mine.rank }} место</h1>
+        <h1 v-if="mine">{{ mine.rank }} место · {{ mine.score }} очков</h1>
         <h1 v-else>Дашборд занятия</h1>
         <p v-if="trial" class="hint">
           Это была разминка: очки сейчас обнулятся, роли останутся. Дальше — по-настоящему.
         </p>
         <p v-else-if="mine" class="hint">
           Считается по уточнениям: сколько раз менеджер сначала спросил, а потом делал.
-          При равных — по доверию, потом по запасу минут.
+          Очки: уточнение +10, доверие ×5, внедрённый модуль +20, каждые 10 минут запаса +1.
         </p>
       </div>
 
 
       <RankBars :rows="v.rating || []" :my-team="v.you.teamId" :max="v.combatTotal" reveal />
-      <div class="legend">уточнения &middot; доверие &middot; запас минут — сколько времени смены сберегли</div>
+      <div class="legend">очки &middot; уточнения &middot; доверие &middot; модули в проде &middot; запас минут</div>
     </div>
     <div class="act">
       <div class="wait">

@@ -1,9 +1,12 @@
-/* Комната = одно занятие: ведущий, игроки, команды, раунды, табло, логи.
-   Состояние живёт в памяти процесса: занятие идёт час, база не нужна. */
+/* Комната = одно занятие: ведущий, игроки, команды, дни недели, табло, логи.
+   Состояние живёт в памяти процесса: занятие идёт час, база не нужна.
+
+   Фазы дня: round (инциденты) -> activate (менеджер выбирает модуль)
+   -> deploy (ведущий внедряет, кто-то падает) -> rating (лидерборд). */
 import { COMBAT_INCIDENTS, ROLES, ROUNDS, RULES, TEAM_NAMES } from './data.js';
 import {
-  applyPick, cutRound, newTeam, rating, resetAfterTrial, resetTeamScores,
-  startRound, stepOptions, stepRole, stepsOf
+  activate, applyPick, cutRound, newTeam, planFor, rating, resetAfterTrial,
+  resetTeamScores, runDeploy, scoreOf, startRound, stepOptions, stepsOf
 } from './game.js';
 
 const STARTING_TEAMS = 4;
@@ -30,11 +33,15 @@ export class Room {
     return this.roundIndex >= 0 ? ROUNDS[this.roundIndex] : null;
   }
 
-  /* роль, чей сейчас ход у команды; null — инцидентов больше нет */
+  teamIdx(team) {
+    return this.teams.indexOf(team);
+  }
+
+  /* роль, чей сейчас ход у команды; null — ходов больше нет */
   turnRoleOf(team) {
     const r = this.round();
     if (!r || team.roundDone) return null;
-    const inc = r.incidents[team.incIndex];
+    const inc = r.pool[team.plan[team.planPos]];
     if (!inc) return null;
     const chain = stepsOf(inc);
     return team.step < chain.length ? chain[team.step].role : null;
@@ -54,7 +61,6 @@ export class Room {
     return team;
   }
 
-  /* Переименовать команду можно в любой момент — это только ярлык */
   renameTeam(teamId, name) {
     const team = this.team(teamId);
     if (!team) return 'Команда не найдена';
@@ -67,7 +73,6 @@ export class Room {
     return null;
   }
 
-  /* Убрать можно только пустую команду и только в лобби */
   removeTeam(teamId) {
     if (this.phase !== 'lobby') return 'Команды меняют только в лобби';
     const team = this.team(teamId);
@@ -142,8 +147,6 @@ export class Room {
     if (name) p.name = name;
   }
 
-  /* Место можно занять в лобби и по ходу раунда (только свободное).
-     Ушедший игрок место не освобождает — он вернётся. */
   seat(playerId, teamId, role) {
     if (this.phase !== 'lobby' && this.phase !== 'round') return 'Сейчас место занять нельзя';
     const player = this.players.get(playerId);
@@ -173,10 +176,10 @@ export class Room {
     player.role = null;
   }
 
-  /* --- раунды --- */
+  /* --- дни --- */
   ensureRound(team) {
     if (this.roundIndex < 0 || team.startedRound === this.roundIndex) return;
-    startRound(team, this.round(), this.roundIndex);
+    startRound(team, this.round(), this.roundIndex, this.teamIdx(team));
   }
 
   startRoundAll(i) {
@@ -185,8 +188,8 @@ export class Room {
     const r = ROUNDS[i];
     this.roundEndsAt = Date.now() + r.minutes * 60 * 1000;
     for (const team of this.activeTeams()) this.ensureRound(team);
-    this.log('Начался ' + r.title.toLowerCase() + ' — ' + r.incidents.length +
-      ' инцидент(а), ' + r.minutes + ' мин таймера');
+    this.log('Начался день «' + r.title + '»: по ' + (r.perTeam || 1) +
+      ' инцидента на команду, ' + r.minutes + ' мин таймера, ' + r.budget + ' минут смены');
   }
 
   start() {
@@ -196,17 +199,15 @@ export class Room {
     return null;
   }
 
-  /* Жёсткая ролевая система: ход делает только владелец роли.
-     Пустую роль сперва надо занять. */
   pick(playerId, k) {
     if (this.phase !== 'round') return 'Раунд не идёт';
     const player = this.players.get(playerId);
     if (!player) return 'Игрок не найден';
     const team = this.team(player.teamId);
     if (!team) return 'Вы не в команде';
-    if (team.roundDone) return 'Раунд для команды закончен';
+    if (team.roundDone) return 'День для команды закончен';
     const role = this.turnRoleOf(team);
-    if (role === null) return 'Раунд для команды закончен';
+    if (role === null) return 'День для команды закончен';
     const seatOwner = team.seats[role];
     if (seatOwner === null) return 'Роль ' + ROLES[role].gen + ' свободна — сначала займите её';
     if (seatOwner !== player.id) return 'Сейчас ход ' + ROLES[role].gen;
@@ -219,9 +220,9 @@ export class Room {
       team.name
     );
     if (team.roundDone) {
-      this.log(team.outOfTime
-        ? 'игровое время вышло, закрыто инцидентов: ' + team.incIndex
-        : 'раунд отыгран полностью', team.name);
+      this.log(team.lost
+        ? 'минуты кончились — день провален'
+        : 'день отыгран, модулей готово: ' + team.modules.length, team.name);
     }
     this.checkBarrier();
     return null;
@@ -229,24 +230,60 @@ export class Room {
 
   checkBarrier() {
     const active = this.activeTeams();
-    if (active.length && active.every((t) => t.roundDone)) this.toRating();
+    if (active.length && active.every((t) => t.roundDone)) this.toActivate();
   }
 
-  toRating() {
-    this.phase = 'rating';
+  toActivate() {
+    this.phase = 'activate';
     this.roundEndsAt = null;
+    this.log('Все команды отыграли день. Менеджеры выбирают модуль на внедрение');
   }
 
-  /* тик реального таймера: раунд закрывается сам */
+  /* менеджер выбирает модуль; если места менеджера нет — любой из своих */
+  activatePick(playerId, k) {
+    if (this.phase !== 'activate') return 'Сейчас не выбор модуля';
+    const player = this.players.get(playerId);
+    if (!player) return 'Игрок не найден';
+    const team = this.team(player.teamId);
+    if (!team) return 'Вы не в команде';
+    const owner = team.seats[0];
+    if (owner !== null && owner !== player.id) return 'Модуль выбирает менеджер';
+    const err = activate(team, k);
+    if (err) return err;
+    this.log('на внедрение: «' + team.modules[team.activated].name + '»', team.name);
+    return null;
+  }
+
+  deployAll() {
+    if (this.phase !== 'activate') return 'Сначала команды выбирают модуль';
+    this.phase = 'deploy';
+    for (const team of this.activeTeams()) {
+      const res = runDeploy(team);
+      if (!res) {
+        this.log(team.lost ? 'деплоить нечего — день провален' : 'модулей не было', team.name);
+        continue;
+      }
+      this.log(
+        res.ok
+          ? 'деплой прошёл: «' + res.name + '»'
+          : 'ДЕПЛОЙ УПАЛ: «' + res.name + '» — ' + res.flaw + ', доверие −' + RULES.deployFailTrust,
+        team.name
+      );
+    }
+    this.log('Ведущий запустил деплой модулей');
+    return null;
+  }
+
+  /* тик реального таймера */
   tick(now) {
     if (this.phase !== 'round' || !this.roundEndsAt || now < this.roundEndsAt) return false;
     for (const team of this.activeTeams()) {
-      if (cutRound(team, this.round())) {
-        this.log('не успели по таймеру, закрыто инцидентов: ' + team.incIndex + ', доверие −1', team.name);
+      if (cutRound(team)) {
+        this.log('не успели по таймеру, доверие −' + RULES.lateTrustPenalty, team.name);
       }
     }
-    this.toRating();
-    this.log('Раунд закрыт по таймеру');
+    this.toActivate();
+    this.log('День закрыт по таймеру');
     return true;
   }
 
@@ -260,16 +297,18 @@ export class Room {
   endRound() {
     if (this.phase !== 'round') return 'Раунд не идёт';
     for (const team of this.activeTeams()) {
-      if (cutRound(team, this.round())) {
-        this.log('раунд закрыт ведущим досрочно, закрыто инцидентов: ' + team.incIndex, team.name);
-      }
+      if (cutRound(team)) this.log('день закрыт ведущим досрочно', team.name);
     }
-    this.toRating();
-    this.log('Ведущий закрыл раунд');
+    this.toActivate();
+    this.log('Ведущий закрыл день');
     return null;
   }
 
   next() {
+    if (this.phase === 'deploy') {
+      this.phase = 'rating';
+      return null;
+    }
     if (this.phase !== 'rating') return 'Сейчас не рейтинг';
     if (this.round() && this.round().trial) {
       for (const team of this.teams) resetAfterTrial(team);
@@ -299,16 +338,26 @@ export class Room {
     if (this.phase === 'lobby') return players ? players + ' из 3' : 'пусто';
     if (!players) return 'не играет';
     if (this.phase === 'round') {
+      if (team.lost) return 'день провален';
       if (team.roundDone) return team.cutByTimer ? 'не успели' : 'готово';
       const role = this.turnRoleOf(team);
       return role === null ? 'готово' : 'ход ' + ROLES[role].gen;
+    }
+    if (this.phase === 'activate') {
+      if (team.lost) return 'день провален';
+      if (!team.modules.length) return 'нет модулей';
+      return team.activated === null ? 'выбирает модуль' : 'модуль выбран';
+    }
+    if (this.phase === 'deploy') {
+      if (!team.deploy) return team.lost ? 'день провален' : 'нечего внедрять';
+      return team.deploy.ok ? 'деплой прошёл' : 'деплой упал';
     }
     return '';
   }
 
   teamCard(team) {
     const r = this.round();
-    const inc = r ? r.incidents[team.incIndex] : null;
+    const inc = r ? r.pool[team.plan[team.planPos]] : null;
     const chain = inc ? stepsOf(inc) : [];
     return {
       id: team.id,
@@ -318,16 +367,22 @@ export class Room {
         return p ? { name: p.name, online: p.online } : null;
       }),
       players: team.seats.filter(Boolean).length,
+      score: scoreOf(team),
       time: team.time,
       trust: team.trust,
       asks: team.asks,
-      bank: team.bank,
-      incIndex: team.incIndex,
-      incTotal: r ? r.incidents.length : 0,
+      spare: team.spare,
+      okModules: team.okModules,
+      incIndex: team.planPos,
+      incTotal: team.plan.length,
       step: team.step,
       stepTotal: chain.length,
       stepRoles: chain.map((s) => s.role),
+      modulesReady: team.modules.length,
+      picked: team.activated !== null,
+      deploy: team.deploy ? { ok: team.deploy.ok, name: team.deploy.name, flaw: team.deploy.flaw } : null,
       roundDone: team.roundDone,
+      lost: team.lost,
       cut: team.cutByTimer,
       status: this.teamStatus(team)
     };
@@ -344,10 +399,12 @@ export class Room {
       combatTotal: COMBAT_INCIDENTS,
       roundEndsAt: this.roundEndsAt,
       maxTrust: RULES.maxTrust,
+      minTrust: RULES.minTrust,
+      score: RULES.score,
       hasHost: this.hasHost(),
       roles: ROLES.map((x) => ({ key: x.key, name: x.name, gen: x.gen, job: x.job })),
       round: r
-        ? { title: r.title, trial: !!r.trial, incTotal: r.incidents.length, budget: r.budget, minutes: r.minutes }
+        ? { title: r.title, trial: !!r.trial, perTeam: r.perTeam || 1, budget: r.budget, minutes: r.minutes }
         : null,
       you: player
         ? {
@@ -359,7 +416,6 @@ export class Room {
       teams: this.teams.map((t) => this.teamCard(t)),
       team: null,
       rating: null,
-      truth: null,
       hostStats: null,
       logs: null
     };
@@ -373,46 +429,30 @@ export class Room {
     const team = this.team(player.teamId);
 
     if (team && team.startedRound === this.roundIndex && r) {
-      const inc = r.incidents[team.incIndex] || null;
+      const inc = r.pool[team.plan[team.planPos]] || null;
       const role = this.turnRoleOf(team);
       const seatOwner = role !== null ? team.seats[role] : null;
-      const yourTurn =
-        this.phase === 'round' && !team.roundDone && role !== null && seatOwner === player.id;
-      view.team = {
-        id: team.id,
-        name: team.name,
-        time: team.time,
-        trust: team.trust,
-        asks: team.asks,
-        bank: team.bank,
-        incIndex: team.incIndex,
-        incTotal: r.incidents.length,
-        step: team.step,
+      const yourTurn = this.phase === 'round' && !team.roundDone && role !== null && seatOwner === player.id;
+      const isManager = team.seats[0] === null || team.seats[0] === player.id;
+      view.team = Object.assign(this.teamCard(team), {
         feed: team.feed,
-        roundDone: team.roundDone,
-        cut: team.cutByTimer,
-        stepTotal: inc ? stepsOf(inc).length : 0,
         turnRole: role,
         turnName: role !== null ? ROLES[role].gen : null,
         turnFree: role !== null && seatOwner === null,
         turnWho: seatOwner ? ((this.players.get(seatOwner) || {}).name || null) : null,
         yourTurn,
-        options: yourTurn && inc ? stepOptions(inc, team.step).map((o) => ({ label: o.label })) : null
-      };
+        options: yourTurn && inc ? stepOptions(inc, team.step).map((o) => ({ label: o.label })) : null,
+        /* изъян модуля до деплоя не показываем: судить надо по своей работе */
+        modules: team.modules.map((m) => ({ name: m.name, short: m.short, incident: m.incident, no: m.no })),
+        activated: team.activated,
+        youPickModule: this.phase === 'activate' && isManager && !team.lost && team.modules.length > 0
+      });
     } else if (team) {
-      view.team = this.teamCard(team);
-      view.team.feed = team.feed;
-      view.team.yourTurn = false;
-      view.team.options = null;
+      view.team = Object.assign(this.teamCard(team), { feed: team.feed, yourTurn: false, options: null });
     }
 
-    if (this.phase === 'rating' || this.phase === 'final') {
+    if (this.phase === 'rating' || this.phase === 'final' || this.phase === 'deploy') {
       view.rating = rating(this.activeTeams());
-    }
-    /* разбор последнего инцидента раунда — на экран рейтинга */
-    if (this.phase === 'rating' && r) {
-      const inc = r.incidents[r.incidents.length - 1];
-      view.truth = { no: inc.ticketNo, title: inc.title, place: inc.place, text: inc.truth };
     }
 
     if (player.isHost) {
@@ -424,6 +464,7 @@ export class Room {
         seated: all.filter((p) => p.teamId).length,
         teamsActive: active.length,
         teamsDone: active.filter((t) => t.roundDone).length,
+        teamsPicked: active.filter((t) => t.activated !== null || t.lost || !t.modules.length).length,
         waiting: all.filter((p) => !p.teamId && p.online).map((p) => p.name)
       };
       view.logs = this.logs.slice(-80).reverse();
@@ -436,15 +477,8 @@ export class Room {
   viewBoard() {
     const view = this.baseView(null);
     view.t = 'board';
-    if (this.phase === 'rating' || this.phase === 'final') {
+    if (this.phase === 'rating' || this.phase === 'final' || this.phase === 'deploy') {
       view.rating = rating(this.activeTeams());
-    }
-    if (this.phase === 'rating') {
-      const r = this.round();
-      if (r) {
-        const inc = r.incidents[r.incidents.length - 1];
-        view.truth = { no: inc.ticketNo, title: inc.title, place: inc.place, text: inc.truth };
-      }
     }
     return view;
   }

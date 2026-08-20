@@ -28,20 +28,21 @@ const times = (n) => {
           </p>
           <p class="fl">
             Доверие бизнеса: <b class="mono">{{ mine.trust }} из {{ v.maxTrust }}</b> ·
-            запас минут: <b class="mono">{{ mine.bank }}</b> ·
-            закрыто инцидентов: <b class="mono">{{ mine.incDone }} из {{ v.combatTotal }}</b>
+            модулей в проде: <b class="mono">{{ mine.okModules }}</b><template v-if="mine.failModules">
+            (упало {{ mine.failModules }})</template> ·
+            запас минут: <b class="mono">{{ mine.spare }}</b>
           </p>
           <div class="board">
-            <div class="bc">Место в занятии</div>
-            <div class="bl">{{ mine.rank }} из {{ (v.rating || []).length }}</div>
-            <div class="bg">{{ mine.asks }}/{{ v.combatTotal }} · доверие {{ mine.trust }}/{{ v.maxTrust }} · запас {{ mine.bank }}</div>
+            <div class="bc">Очки за смену · место {{ mine.rank }} из {{ (v.rating || []).length }}</div>
+            <div class="bl">{{ mine.score }}</div>
+            <div class="bg">уточнения {{ mine.asks }}/{{ v.combatTotal }} · доверие {{ mine.trust }} · модули {{ mine.okModules }} · запас {{ mine.spare }}</div>
           </div>
         </template>
       </div>
       <div class="mt">
         <RankBars :rows="v.rating || []" :my-team="v.you.teamId" :max="v.combatTotal" reveal />
         <RatingTable :rows="v.rating || []" :my-team="v.you.teamId" :deltas="false" />
-        <div class="legend">уточнения · доверие · запас минут · инциденты</div>
+        <div class="legend">очки · уточнения · доверие · модули · запас минут</div>
       </div>
     </div>
     <div class="act">

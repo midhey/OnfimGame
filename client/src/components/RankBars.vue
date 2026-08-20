@@ -14,11 +14,9 @@ const delay = (i) => {
   const step = Math.min(0.4, 2.4 / Math.max(n - 1, 1));
   return { animationDelay: ((n - 1 - i) * step).toFixed(2) + 's' };
 };
-/* ширина полосы — уточнения относительно максимума занятия */
-const pct = computed(() => (r) => {
-  const m = Math.max(props.max, 1);
-  return Math.max(4, Math.round((100 * r.asks) / m));
-});
+/* полоса — общий счёт относительно лучшего в занятии */
+const best = computed(() => Math.max(1, ...props.rows.map((r) => r.score || 0)));
+const pct = computed(() => (r) => Math.max(4, Math.round((100 * Math.max(r.score || 0, 0)) / best.value)));
 </script>
 
 <template>
@@ -29,12 +27,15 @@ const pct = computed(() => (r) => {
       <div class="dmain">
         <div class="dname">
           {{ r.name }}
-          <span v-if="r.cut" class="dflag">не успели</span>
+          <span class="dscore">{{ r.score }}</span>
+          <span v-if="r.lost" class="dflag">день провален</span>
+          <span v-else-if="r.cut" class="dflag">не успели</span>
+          <span v-else-if="r.deploy && !r.deploy.ok" class="dflag">деплой упал</span>
         </div>
         <div class="dbar"><span :style="{ width: pct(r) + '%' }"></span></div>
         <div class="dsub">
           уточнений {{ r.asks }} из {{ max }} &middot; доверие {{ r.trust }} &middot;
-          запас {{ r.bank }} мин &middot; инцидентов {{ r.incDone }}
+          модулей в проде {{ r.okModules }} &middot; запас {{ r.spare }} мин
         </div>
       </div>
     </div>

@@ -107,7 +107,7 @@ function pushRoom(room) {
 }
 
 const HOST_ONLY = new Set(['host:start', 'host:end', 'host:next', 'host:reset',
-  'host:addTeam', 'host:removeTeam', 'host:renameTeam', 'host:extend']);
+  'host:addTeam', 'host:removeTeam', 'host:renameTeam', 'host:extend', 'host:deploy']);
 
 wss.on('connection', (ws) => {
   ws.playerId = null;
@@ -215,6 +215,12 @@ wss.on('connection', (ws) => {
         break;
       case 'pick':
         err = room.pick(ws.playerId, msg.k);
+        break;
+      case 'activate':
+        err = room.activatePick(ws.playerId, msg.k);
+        break;
+      case 'host:deploy':
+        err = room.deployAll();
         break;
       case 'host:start':
         err = room.start();

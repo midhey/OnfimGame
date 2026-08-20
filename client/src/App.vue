@@ -4,6 +4,8 @@ import { S } from './store.js';
 import JoinView from './views/JoinView.vue';
 import LobbyView from './views/LobbyView.vue';
 import RoundView from './views/RoundView.vue';
+import ActivateView from './views/ActivateView.vue';
+import DeployView from './views/DeployView.vue';
 import RatingView from './views/RatingView.vue';
 import FinalView from './views/FinalView.vue';
 import HostAuth from './views/HostAuth.vue';
@@ -23,6 +25,8 @@ const screen = computed(() => {
   if (v.value.you.isHost) return HostView;
   if (v.value.phase === 'lobby') return LobbyView;
   if (v.value.phase === 'round') return v.value.team ? RoundView : LobbyView;
+  if (v.value.phase === 'activate') return v.value.team ? ActivateView : LobbyView;
+  if (v.value.phase === 'deploy') return v.value.team ? DeployView : LobbyView;
   if (v.value.phase === 'rating') return RatingView;
   if (v.value.phase === 'final') return FinalView;
   return LobbyView;

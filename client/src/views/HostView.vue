@@ -12,10 +12,12 @@ const left = computed(() => timerLeft());
 const label = computed(() => {
   const x = v.value;
   if (x.phase === 'lobby') return 'Лобби';
-  const name = x.round ? (x.round.trial ? 'Разминка' : 'Раунд ' + x.roundIndex + ' из ' + (x.roundsTotal - 1)) : '';
+  if (x.phase === 'final') return 'Итоги смены';
+  const name = x.round ? x.round.title : '';
   if (x.phase === 'round') return name;
-  if (x.phase === 'rating') return 'Рейтинг · ' + name.toLowerCase();
-  return 'Итоги смены';
+  if (x.phase === 'activate') return 'Выбор модулей · ' + name.toLowerCase();
+  if (x.phase === 'deploy') return 'Деплой · ' + name.toLowerCase();
+  return 'Итоги дня · ' + name.toLowerCase();
 });
 const lastRound = computed(() => v.value.roundIndex >= v.value.roundsTotal - 1);
 
@@ -73,7 +75,7 @@ function endRound() {
             <p class="big" v-if="v.joinUrl">адрес: {{ v.joinUrl }}</p>
             <p class="hint">
               Табло для проектора: {{ v.joinUrl }}/#/board — код {{ v.code }}.
-              Сначала разминка без очков, потом три раунда по четыре инцидента, каждый на время.
+              Сначала разминка без очков, потом рабочая неделя: пять дней, у каждой команды свои инциденты.
             </p>
             <div class="grid">
               <div v-for="team in v.teams" :key="team.id" class="card">
@@ -122,6 +124,48 @@ function endRound() {
             </div>
           </template>
 
+          <!-- ВЫБОР МОДУЛЕЙ -->
+          <template v-else-if="v.phase === 'activate'">
+            <h1>Менеджеры выбирают модуль</h1>
+            <p class="big">Определились {{ st.teamsPicked }} из {{ st.teamsActive }} команд</p>
+            <p class="hint">
+              Каждая команда внедряет один модуль из закрытых инцидентов. Изъяны команды
+              не видят — судят по своей работе. Запускайте деплой, когда все определятся:
+              не выбравшим уйдёт первый модуль.
+            </p>
+            <div class="grid">
+              <div v-for="team in active" :key="team.id" class="card">
+                <h2>{{ team.name }}<span class="st">{{ team.status }}</span></h2>
+                <div class="stats">
+                  <div class="stat"><div class="k">Модулей</div><div class="v"><span class="num">{{ team.modulesReady }}</span></div></div>
+                  <div class="stat"><div class="k">Выбрали</div><div class="v"><span class="num">{{ team.picked ? 'да' : '—' }}</span></div></div>
+                  <div class="stat"><div class="k">Очки</div><div class="v"><span class="num">{{ team.score }}</span></div></div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- ДЕПЛОЙ -->
+          <template v-else-if="v.phase === 'deploy'">
+            <h1>Деплой модулей</h1>
+            <div class="grid">
+              <div v-for="team in active" :key="team.id" class="card">
+                <h2>{{ team.name }}<span class="st">{{ team.status }}</span></h2>
+                <template v-if="team.deploy">
+                  <p class="dmod" :class="team.deploy.ok ? 'ok' : 'fail'">
+                    {{ team.deploy.ok ? 'в проде' : 'откатили' }} &middot; {{ team.deploy.name }}
+                  </p>
+                  <p v-if="!team.deploy.ok" class="hint">Причина: {{ team.deploy.flaw }}. Доверие −1.</p>
+                </template>
+                <p v-else class="hint">{{ team.lost ? 'День провален, внедрять нечего.' : 'Модулей не было.' }}</p>
+              </div>
+            </div>
+            <p class="hint mt">
+              Модуль падает там, где проверка была для галочки или решение было костылём.
+              Это и есть материал для разбора.
+            </p>
+          </template>
+
           <!-- РЕЙТИНГ / ИТОГИ -->
           <template v-else>
             <h1 v-if="v.phase === 'rating'">{{ v.round && v.round.trial ? 'Разминка сыграна' : 'Рейтинг' }}</h1>
@@ -135,7 +179,7 @@ function endRound() {
             <RankBars :rows="v.rating || []" :max="v.combatTotal" />
             <RatingTable :rows="v.rating || []" :deltas="v.phase === 'rating' && !(v.round && v.round.trial)" />
             <div class="legend">
-              уточнения — сколько раз менеджер сначала спросил · доверие от {{ -v.maxTrust }} до {{ v.maxTrust }} · запас минут · закрытые инциденты
+              очки: уточнение +{{ v.score.ask }}, доверие ×{{ v.score.trust }}, модуль в проде +{{ v.score.module }}, каждые {{ v.score.minutes }} минут запаса +1
             </div>
             <p v-if="v.phase === 'rating'" class="hint mt">
               Разберите вслух: что было на самом деле и какой вопрос сэкономил бы время. Потом следующий раунд.
@@ -161,7 +205,7 @@ function endRound() {
       <div class="row">
         <template v-if="v.phase === 'lobby'">
           <button class="btn primary" :disabled="!st.teamsActive" @click="go('host:start')">
-            {{ st.teamsActive ? 'Начать смену (разминка)' : 'Ждём, пока кто-нибудь займёт роль' }}
+            {{ st.teamsActive ? 'Начать неделю (разминка)' : 'Ждём, пока кто-нибудь займёт роль' }}
           </button>
           <button class="btn small" @click="go('host:addTeam')">+ команда</button>
         </template>
@@ -171,9 +215,17 @@ function endRound() {
           <button class="btn small" @click="extend">+2 минуты</button>
         </template>
 
+        <template v-else-if="v.phase === 'activate'">
+          <button class="btn primary" @click="go('host:deploy')">Запустить деплой</button>
+        </template>
+
+        <template v-else-if="v.phase === 'deploy'">
+          <button class="btn primary" @click="go('host:next')">Показать рейтинг</button>
+        </template>
+
         <template v-else-if="v.phase === 'rating'">
           <button class="btn primary" @click="go('host:next')">
-            {{ lastRound ? 'Итоги смены' : 'Следующий раунд' }}
+            {{ lastRound ? 'Итоги смены' : 'Следующий день' }}
           </button>
         </template>
 

@@ -15,7 +15,7 @@ const ranked = computed(() => {
   return v.value.teams
     .filter((t) => t.players > 0)
     .slice()
-    .sort((a, b) => b.asks - a.asks || b.trust - a.trust || b.time - a.time);
+    .sort((a, b) => b.score - a.score || b.asks - a.asks || b.time - a.time);
 });
 
 /* Лидерборд раскрывается снизу вверх: последнему месту — нулевая задержка */
@@ -25,8 +25,9 @@ const revealDelay = (i) => {
   const step = Math.min(0.45, 2.7 / Math.max(n - 1, 1));
   return ((n - 1 - i) * step).toFixed(2) + 's';
 };
+const bestScore = computed(() => Math.max(1, ...leaders.value.map((r) => r.score || 0)));
 const barWidth = (r) =>
-  Math.max(3, Math.round((100 * r.asks) / Math.max(v.value.combatTotal, 1))) + '%';
+  Math.max(3, Math.round((100 * Math.max(r.score || 0, 0)) / bestScore.value)) + '%';
 
 const label = computed(() => {
   const x = v.value;
@@ -34,10 +35,11 @@ const label = computed(() => {
   if (x.phase === 'lobby') return 'Ждём команды';
   if (x.phase === 'final') return 'Итоги смены';
   if (!x.round) return '';
-  if (x.phase === 'rating') {
-    return x.round.trial ? 'Итоги разминки' : 'Итоги раунда ' + x.roundIndex;
-  }
-  return x.round.trial ? 'Разминка' : 'Раунд ' + x.roundIndex + ' из ' + (x.roundsTotal - 1);
+  const day = x.round.trial ? 'разминки' : 'дня «' + x.round.title + '»';
+  if (x.phase === 'activate') return 'Выбор модулей · ' + day;
+  if (x.phase === 'deploy') return 'Деплой · ' + day;
+  if (x.phase === 'rating') return 'Итоги ' + day;
+  return x.round.trial ? 'Разминка' : x.round.title;
 });
 
 function watch() {
@@ -122,9 +124,45 @@ function watch() {
           </span>
           <span class="bnum"><b>{{ team.asks }}</b><em>уточнений</em></span>
           <span class="bnum"><b :class="{ low: team.trust <= 2, neg: team.trust < 0 }">{{ team.trust }}</b><em>доверие</em></span>
-          <span class="bnum"><b>{{ team.time }}</b><em>запас минут</em></span>
+          <span class="bnum"><b>{{ team.time }}</b><em>минут</em></span>
+          <span class="bnum"><b>{{ team.score }}</b><em>очков</em></span>
         </div>
       </TransitionGroup>
+    </main>
+
+    <!-- ВЫБОР МОДУЛЕЙ -->
+    <main v-else-if="v.phase === 'activate'" class="bmain">
+      <div class="bhead">Менеджеры выбирают, что уйдёт в продакшн</div>
+      <div class="brows" :style="{ '--rows': Math.max(ranked.length, 1) }">
+        <div v-for="(team, i) in ranked" :key="team.id" class="brow" :class="{ top: i === 0 }">
+          <span class="bpos">{{ i + 1 }}</span>
+          <span class="bname">{{ team.name }}</span>
+          <span class="bstate wide">
+            <template v-if="team.lost">день провален — внедрять нечего</template>
+            <template v-else-if="!team.modulesReady">инцидентов не закрыто</template>
+            <template v-else-if="team.picked">модуль выбран</template>
+            <template v-else>выбирают из {{ team.modulesReady }}</template>
+          </span>
+          <span class="bnum"><b :class="{ neg: !team.picked && !team.lost && team.modulesReady }">{{ team.picked ? 'готово' : '…' }}</b><em>решение</em></span>
+        </div>
+      </div>
+    </main>
+
+    <!-- ДЕПЛОЙ: у кого поднялось, у кого упало -->
+    <main v-else-if="v.phase === 'deploy'" class="bmain">
+      <div class="bhead">Деплой модулей в продакшн</div>
+      <div class="brows" :style="{ '--rows': Math.max(ranked.length, 1) }">
+        <div v-for="(team, i) in ranked" :key="team.id"
+             class="brow dep" :class="team.deploy ? (team.deploy.ok ? 'ok' : 'fail') : 'none'">
+          <span class="bpos">{{ team.deploy ? (team.deploy.ok ? '✓' : '×') : '—' }}</span>
+          <span class="bname">{{ team.name }}</span>
+          <span class="bstate wide">
+            <template v-if="!team.deploy">{{ team.lost ? 'день провален' : 'нечего внедрять' }}</template>
+            <template v-else>{{ team.deploy.name }}<template v-if="!team.deploy.ok"><i>·</i>{{ team.deploy.flaw }}</template></template>
+          </span>
+          <span class="bnum"><b :class="{ neg: team.deploy && !team.deploy.ok }">{{ team.deploy ? (team.deploy.ok ? 'в проде' : 'откат') : '—' }}</b><em>итог</em></span>
+        </div>
+      </div>
     </main>
 
     <!-- ИТОГИ: только лидерборд, раскрывается снизу вверх -->
@@ -134,17 +172,22 @@ function watch() {
              class="brow lb" :class="{ top: r.rank === 1 }"
              :style="{ animationDelay: revealDelay(i) }">
           <span class="bpos">{{ r.rank }}</span>
-          <span class="bname">{{ r.name }}<em v-if="r.cut">не успели</em></span>
+          <span class="bname">
+            {{ r.name }}
+            <em v-if="r.lost">день провален</em>
+            <em v-else-if="r.cut">не успели</em>
+            <em v-else-if="r.deploy && !r.deploy.ok">деплой упал</em>
+          </span>
           <span class="bbar"><i :style="{ width: barWidth(r) }"></i></span>
+          <span class="bnum big"><b>{{ r.score }}</b><em>очков</em></span>
           <span class="bnum"><b>{{ r.asks }}</b><em>уточнений</em></span>
           <span class="bnum"><b :class="{ neg: r.trust < 0 }">{{ r.trust }}</b><em>доверие</em></span>
-          <span class="bnum"><b>{{ r.bank }}</b><em>запас минут</em></span>
+          <span class="bnum"><b>{{ r.okModules }}</b><em>модулей</em></span>
         </div>
       </div>
       <div class="bnote">
-        уточнения — сколько раз спросили, прежде чем делать &middot;
-        доверие бизнеса от {{ -v.maxTrust }} до {{ v.maxTrust }} &middot;
-        запас минут — сколько времени смены сберегли
+        очки: уточнение +{{ v.score.ask }} &middot; доверие ×{{ v.score.trust }} &middot;
+        модуль в проде +{{ v.score.module }} &middot; каждые {{ v.score.minutes }} минут запаса +1
       </div>
     </main>
   </div>

@@ -246,6 +246,39 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
   @keyframes srise{from{transform:translateY(14px)}}
 }
 
+/* модули на внедрение */
+.mods{display:flex; flex-direction:column; gap:8px}
+.mod{
+  -webkit-appearance:none; appearance:none; display:flex; flex-direction:column; gap:3px;
+  width:100%; text-align:left; background:var(--card); border:1px solid var(--line);
+  border-left:3px solid var(--line); border-radius:12px; padding:12px 14px; cursor:pointer;
+  font:inherit; color:inherit;
+}
+.mod:disabled{cursor:default; opacity:.75}
+.mod.on{border-color:var(--accent); border-left-color:var(--accent); background:var(--r1soft)}
+.mod .mno{font:600 10px/1.4 var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
+.mod .mname{font:600 17px/1.3 var(--sans)}
+.mod .minc{font-size:13px; color:var(--muted)}
+.mod .mok{font:600 10px/1.4 var(--mono); letter-spacing:.05em; text-transform:uppercase; color:var(--accent); margin-top:3px}
+
+/* результат деплоя у игрока */
+.dep{
+  background:var(--card); border:1px solid var(--line); border-top:4px solid var(--line);
+  border-radius:4px 4px 14px 14px; padding:16px 14px;
+}
+.dep.good{border-top-color:var(--accent)}
+.dep.bad{border-top-color:var(--alert)}
+.dep .dl{font:600 10px/1.4 var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
+.dep.good .dl{color:var(--accent)}
+.dep.bad .dl{color:var(--alert)}
+.dep .dn{font:700 22px/1.25 var(--sans); margin:6px 0 8px}
+.dep .dt{margin:0; font-size:16px; line-height:1.45}
+.dmod{font:600 15px/1.35 var(--sans); margin:0 0 6px}
+.dmod.ok{color:var(--accent)}
+.dmod.fail{color:var(--alert)}
+/* общий счёт в строке дашборда игрока */
+.dscore{font:700 15px/1 var(--mono); color:var(--accent); margin-left:.3em}
+
 /* ---------- цвета ролей ---------- */
 .rolechip{display:inline-block; font:600 10px/1.4 var(--mono); letter-spacing:.05em;
   text-transform:uppercase; color:#fff; border-radius:6px; padding:2px 7px; margin-right:6px}
@@ -502,6 +535,22 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
   font:400 clamp(7px,.95vh,11px)/1.3 var(--mono); font-style:normal;
   letter-spacing:.04em; text-transform:uppercase; color:var(--muted); white-space:nowrap;
 }
+.bhead{
+  flex:0 0 auto; text-align:center; width:min(1400px,94vw); margin:0 auto;
+  font:600 clamp(13px,2.2vh,26px)/1.3 var(--sans); color:var(--ink);
+}
+.brow.dep{grid-template-columns:minmax(1.8em,auto) minmax(0,1.4fr) minmax(0,3fr) minmax(4.6em,auto)}
+.brow.dep.ok{border-left-color:var(--accent); background:var(--r1soft)}
+.brow.dep.fail{border-left-color:var(--alert); background:#FBE9EC}
+.brow.dep.none{opacity:.7}
+.brow.dep .bpos{font-size:clamp(20px,3.4vh,44px)}
+.brow.dep.ok .bpos{color:var(--accent)}
+.brow.dep.fail .bpos{color:var(--alert)}
+.bstate.wide{
+  white-space:normal; text-transform:none; font-family:var(--sans); font-weight:600;
+  font-size:clamp(11px,1.7vh,20px); color:var(--ink); letter-spacing:0;
+}
+.bnum.big b{font-size:clamp(20px,3.4vh,46px); color:var(--accent)}
 .bnote{
   flex:0 0 auto; text-align:center; width:min(1400px,94vw); margin:0 auto;
   font:400 clamp(9px,1.2vh,14px)/1.5 var(--mono); color:var(--muted);
