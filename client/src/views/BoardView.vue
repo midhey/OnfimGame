@@ -29,6 +29,32 @@ const bestScore = computed(() => Math.max(1, ...leaders.value.map((r) => r.score
 const barWidth = (r) =>
   Math.max(3, Math.round((100 * Math.max(r.score || 0, 0)) / bestScore.value)) + '%';
 
+/* сколько времени дня осталось — полоской под таймером */
+const timerPct = computed(() => {
+  const r = v.value && v.value.round;
+  if (!r || left.value === null) return '100%';
+  const total = Math.max((r.minutes || 1) * 60, 1);
+  return Math.max(0, Math.min(100, (left.value / total) * 100)).toFixed(1) + '%';
+});
+
+/* кто поднялся, кто опустился: стрелка у места на пару секунд */
+const prevRank = ref({});
+const moved = ref({});
+let moveTimer = null;
+watch(ranked, (list) => {
+  const next = {}, changes = {};
+  list.forEach((t, i) => {
+    next[t.id] = i;
+    const was = prevRank.value[t.id];
+    if (was !== undefined && was !== i) changes[t.id] = i < was ? 'up' : 'down';
+  });
+  prevRank.value = next;
+  if (!Object.keys(changes).length) return;
+  moved.value = { ...moved.value, ...changes };
+  clearTimeout(moveTimer);
+  moveTimer = setTimeout(() => { moved.value = {}; }, 2600);
+});
+
 /* Деплой идёт как настоящий пайплайн: у каждой команды по очереди загораются
    стадии, и только на последней видно, встал модуль или упал. Результат уже
    пришёл с сервера — тянем только показ.
@@ -149,6 +175,8 @@ function connect() {
       </span>
       <span class="bt right"><span class="dot" :class="{ off: S.conn !== 'live' }"></span>{{ v.joinUrl }}</span>
     </header>
+    <!-- фирменная точечная полоса из логотипа -->
+    <div class="bdots" aria-hidden="true"></div>
 
     <!-- ЛОББИ: код и составы -->
     <main v-if="v.phase === 'lobby'" class="bmain lobby">
@@ -172,13 +200,18 @@ function connect() {
 
     <!-- РАУНД: таймер и команды колонкой, места меняются на ходу -->
     <main v-else-if="v.phase === 'round'" class="bmain">
-      <div class="btimer" :class="{ low: left !== null && left < 60 }">
-        {{ left !== null ? fmtTimer(left) : '' }}
+      <div class="btwrap">
+        <div class="btimer" :class="{ low: left !== null && left < 60 }">
+          {{ left !== null ? fmtTimer(left) : '' }}
+        </div>
+        <div class="btrack" :class="{ low: left !== null && left < 60 }" aria-hidden="true">
+          <i :style="{ width: timerPct }"></i>
+        </div>
       </div>
       <TransitionGroup name="flip" tag="div" class="brows" :style="{ '--rows': Math.max(ranked.length, 1) }">
         <div v-for="(team, i) in ranked" :key="team.id"
              class="brow rd" :class="{ blead: i === 0, fin: team.roundDone }">
-          <span class="bpos">{{ i + 1 }}</span>
+          <span class="bpos">{{ i + 1 }}<i v-if="moved[team.id]" class="bmv" :class="moved[team.id]">{{ moved[team.id] === 'up' ? '▲' : '▼' }}</i></span>
           <span class="bname">{{ team.name }}</span>
           <span class="bsteps">
             <i v-for="(role, s) in team.stepRoles" :key="s"
