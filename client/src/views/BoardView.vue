@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch, onUnmounted } from 'vue';
 import { S, watchBoard, timerLeft, fmtTimer } from '../store.js';
 
 const v = computed(() => (S.view && S.view.t === 'board' ? S.view : null));
@@ -29,6 +29,35 @@ const bestScore = computed(() => Math.max(1, ...leaders.value.map((r) => r.score
 const barWidth = (r) =>
   Math.max(3, Math.round((100 * Math.max(r.score || 0, 0)) / bestScore.value)) + '%';
 
+/* Деплой не показываем сразу: сперва все строки «катятся», потом результат
+   раскрывается по одной команде. Данные уже пришли — тянем только показ. */
+const noAnim = typeof window !== 'undefined' && window.matchMedia
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const shownCount = ref(0);
+let revealTimer = null;
+
+function startDeployReveal(total) {
+  clearTimeout(revealTimer);
+  if (noAnim || total < 1) { shownCount.value = total; return; }
+  shownCount.value = 0;
+  const step = Math.max(450, Math.min(900, 3600 / total));
+  const tick = () => {
+    shownCount.value += 1;
+    if (shownCount.value < total) revealTimer = setTimeout(tick, step);
+  };
+  revealTimer = setTimeout(tick, 1400);   // пауза, пока «идёт деплой» у всех
+}
+
+watch(() => v.value && v.value.phase, (p) => {
+  if (p === 'deploy') startDeployReveal(ranked.value.length);
+  else { clearTimeout(revealTimer); shownCount.value = 0; }
+}, { immediate: true });
+
+onUnmounted(() => clearTimeout(revealTimer));
+
+const shown = (i) => i < shownCount.value;
+const deployRunning = computed(() => shownCount.value < ranked.value.length);
+
 const label = computed(() => {
   const x = v.value;
   if (!x) return '';
@@ -45,7 +74,7 @@ const label = computed(() => {
   return theme ? x.round.title + ' · ' + theme : x.round.title;
 });
 
-function watch() {
+function connect() {
   if (!live.value || digits.value.length !== 4) return;
   watchBoard(digits.value);
 }
@@ -67,8 +96,8 @@ function watch() {
     <div class="act">
       <div class="ask">Код занятия</div>
       <input class="inp code" v-model="code" inputmode="numeric" maxlength="4"
-             placeholder="0000" aria-label="Код занятия" @keyup.enter="watch">
-      <button class="btn primary" :disabled="!live || digits.length !== 4" @click="watch">Показать табло</button>
+             placeholder="0000" aria-label="Код занятия" @keyup.enter="connect">
+      <button class="btn primary" :disabled="!live || digits.length !== 4" @click="connect">Показать табло</button>
       <div v-if="!live" class="err">Нет связи с сервером. Пробуем ещё…</div>
       <div class="foot"><a class="lnk" href="#/">на страницу игрока</a></div>
     </div>
@@ -111,7 +140,7 @@ function watch() {
       </div>
       <TransitionGroup name="flip" tag="div" class="brows" :style="{ '--rows': Math.max(ranked.length, 1) }">
         <div v-for="(team, i) in ranked" :key="team.id"
-             class="brow rd" :class="{ lead: i === 0, fin: team.roundDone }">
+             class="brow rd" :class="{ blead: i === 0, fin: team.roundDone }">
           <span class="bpos">{{ i + 1 }}</span>
           <span class="bname">{{ team.name }}</span>
           <span class="bsteps">
@@ -128,7 +157,7 @@ function watch() {
           <span class="bnum"><b>{{ team.asks }}</b><em>уточнений</em></span>
           <span class="bnum"><b :class="{ low: team.trust <= 2, neg: team.trust < 0 }">{{ team.trust }}</b><em>доверие</em></span>
           <span class="bnum"><b>{{ team.time }}</b><em>минут</em></span>
-          <span class="bnum"><b>{{ team.score }}</b><em>очков</em></span>
+          <span class="bnum score"><b>{{ team.score }}</b><em>очков</em></span>
         </div>
       </TransitionGroup>
     </main>
@@ -137,7 +166,7 @@ function watch() {
     <main v-else-if="v.phase === 'activate'" class="bmain">
       <div class="bhead">Менеджеры выбирают, что уйдёт в продакшн</div>
       <div class="brows" :style="{ '--rows': Math.max(ranked.length, 1) }">
-        <div v-for="(team, i) in ranked" :key="team.id" class="brow" :class="{ lead: i === 0 }">
+        <div v-for="(team, i) in ranked" :key="team.id" class="brow" :class="{ blead: i === 0 }">
           <span class="bpos">{{ i + 1 }}</span>
           <span class="bname">{{ team.name }}</span>
           <span class="bstate wide">
@@ -153,17 +182,27 @@ function watch() {
 
     <!-- ДЕПЛОЙ: у кого поднялось, у кого упало -->
     <main v-else-if="v.phase === 'deploy'" class="bmain">
-      <div class="bhead">Деплой модулей в продакшн</div>
+      <div class="bhead">{{ deployRunning ? 'Выкладываем модули в прод…' : 'Деплой окончен' }}</div>
       <div class="brows" :style="{ '--rows': Math.max(ranked.length, 1) }">
-        <div v-for="(team, i) in ranked" :key="team.id"
-             class="brow dp" :class="team.deploy ? (team.deploy.ok ? 'ok' : 'fail') : 'none'">
-          <span class="bpos">{{ team.deploy ? (team.deploy.ok ? '✓' : '×') : '—' }}</span>
+        <div v-for="(team, i) in ranked" :key="team.id" class="brow dp"
+             :class="shown(i) ? (team.deploy ? (team.deploy.ok ? 'ok' : 'fail') : 'none') : 'run'">
+          <span class="bpos">
+            <template v-if="!shown(i)"><i class="bspin"></i></template>
+            <template v-else>{{ team.deploy ? (team.deploy.ok ? '✓' : '×') : '—' }}</template>
+          </span>
           <span class="bname">{{ team.name }}</span>
           <span class="bstate wide">
-            <template v-if="!team.deploy">{{ team.lost ? 'день провален' : 'нечего внедрять' }}</template>
+            <span v-if="!shown(i)" class="bprog"><i></i></span>
+            <template v-else-if="!team.deploy">{{ team.lost ? 'день провален' : 'нечего внедрять' }}</template>
             <template v-else>{{ team.deploy.name }}<template v-if="!team.deploy.ok"><i>·</i>{{ team.deploy.flaw }}</template></template>
           </span>
-          <span class="bnum"><b :class="{ neg: team.deploy && !team.deploy.ok }">{{ team.deploy ? (team.deploy.ok ? 'в проде' : 'откат') : '—' }}</b><em>итог</em></span>
+          <span class="bnum">
+            <b :class="{ neg: shown(i) && team.deploy && !team.deploy.ok }">
+              <template v-if="!shown(i)">идём</template>
+              <template v-else>{{ team.deploy ? (team.deploy.ok ? 'в проде' : 'откат') : '—' }}</template>
+            </b>
+            <em>итог</em>
+          </span>
         </div>
       </div>
     </main>
@@ -172,7 +211,7 @@ function watch() {
     <main v-else class="bmain">
       <div class="brows" :style="{ '--rows': Math.max(leaders.length, 1) }">
         <div v-for="(r, i) in leaders" :key="r.teamId"
-             class="brow lbd" :class="{ lead: r.rank === 1 }"
+             class="brow lbd" :class="{ blead: r.rank === 1 }"
              :style="{ animationDelay: revealDelay(i) }">
           <span class="bpos">{{ r.rank }}</span>
           <span class="bname">
@@ -182,7 +221,7 @@ function watch() {
             <em v-else-if="r.deploy && !r.deploy.ok">деплой упал</em>
           </span>
           <span class="bbar"><i :style="{ width: barWidth(r) }"></i></span>
-          <span class="bnum big"><b>{{ r.score }}</b><em>очков</em></span>
+          <span class="bnum score big"><b>{{ r.score }}</b><em>очков</em></span>
           <span class="bnum"><b>{{ r.asks }}</b><em>уточнений</em></span>
           <span class="bnum"><b :class="{ neg: r.trust < 0 }">{{ r.trust }}</b><em>доверие</em></span>
           <span class="bnum"><b>{{ r.okModules }}</b><em>модулей</em></span>

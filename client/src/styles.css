@@ -12,6 +12,13 @@
   --line:#D9E2DD;
   --plate:#E4ECE8;
   --muted-dark:#465953;   /* второстепенный текст на табло: контраст выше 7:1 */
+  /* табло смотрят с проектора через весь зал — там свои, более тёмные тона */
+  --board-bg:#E3EBE7;     /* фон табло темнее общего, чтобы белые строки читались */
+  --line-strong:#AEC2BB;  /* рамка строк на табло */
+  --ink-2:#2F3E38;        /* второстепенный текст на табло: контраст выше 9:1 */
+  --r1tint:#C9E3DA;       /* фон строки лидера: заметнее, чем r1soft */
+  --alert-deep:#A81F2E;   /* сигнальный красный для текста: контраст выше 7:1 */
+  --alert-tint:#F6D8DD;   /* фон упавшего деплоя */
   --r0:#E0862F;
   --r1:#007A65;
   --r2:#2F86B5;
@@ -274,6 +281,10 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
 .dep.bad .dl{color:var(--alert)}
 .dep .dn{font:700 22px/1.25 var(--sans); margin:6px 0 8px}
 .dep .dt{margin:0; font-size:16px; line-height:1.45}
+.dep.run{border-top-color:var(--r0)}
+.dep.run .dl{color:var(--r0)}
+.dep.run .bprog{height:12px}
+.bpos .bspin{vertical-align:middle}
 .dmod{font:600 15px/1.35 var(--sans); margin:0 0 6px}
 .dmod.ok{color:var(--accent)}
 .dmod.fail{color:var(--alert)}
@@ -388,7 +399,7 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
    и четыре команды, и десять влезали на проектор. */
 .bd{
   width:100vw; height:100vh; height:100dvh; overflow:hidden;
-  display:flex; flex-direction:column; background:var(--bg);
+  display:flex; flex-direction:column; background:var(--board-bg);
 }
 .bhd{
   flex:0 0 auto; display:flex; align-items:center; gap:clamp(8px,1.5vw,22px);
@@ -417,7 +428,7 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
 /* --- лобби --- */
 .bmain.lobby{justify-content:flex-start}
 .bjoin{text-align:center; flex:0 0 auto}
-.bjoin .bk{font:600 clamp(12px,1vw,16px)/1.3 var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--muted-dark)}
+.bjoin .bk{font:700 clamp(12px,1vw,16px)/1.3 var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--ink-2)}
 .bjoin .bcode{font:700 clamp(44px,9vh,120px)/1 var(--mono); letter-spacing:.1em; color:var(--accent); margin:.1em 0}
 .bjoin .burl{font:600 clamp(13px,1.5vw,26px)/1.3 var(--mono); color:var(--ink)}
 .dotstrip.mid{margin-left:auto; margin-right:auto}
@@ -490,42 +501,44 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
     minmax(0, 1.5fr)                     /* состояние */
     repeat(3, minmax(3.8em, auto));      /* цифры */
   gap:clamp(6px,1vw,22px);
-  background:var(--card); border:1px solid var(--line); border-left:4px solid var(--line);
+  background:var(--card); border:1px solid var(--line-strong);
+  border-left:clamp(5px,.5vw,8px) solid var(--line-strong);
   border-radius:clamp(8px,.9vw,14px); padding:clamp(6px,1.2vh,18px) clamp(10px,1.3vw,24px);
-  color:var(--ink);
+  color:var(--ink); box-shadow:0 2px 10px rgba(24,40,34,.10);
 }
 /* строка дня: четыре цифры вместо трёх */
 .brow.rd{
   grid-template-columns:
     minmax(1.6em, auto) minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 1.4fr)
-    repeat(4, minmax(3.6em, auto));
+    repeat(3, minmax(3.4em, auto)) minmax(5.4em, auto);
 }
 /* лидерборд: полоса шире, состояния нет */
 .brow.lbd{
   grid-template-columns:
-    minmax(1.6em, auto) minmax(0, 2fr) minmax(0, 2.2fr) repeat(4, minmax(4em, auto));
+    minmax(1.6em, auto) minmax(0, 2fr) minmax(0, 2.2fr)
+    minmax(6em, auto) repeat(3, minmax(3.8em, auto));
 }
-.brow.lead{border-left-color:var(--accent); background:var(--r1soft); color:var(--ink)}
-.brow.lead .bpos{color:var(--accent-deep)}
-.brow.lead .bname{color:var(--ink)}
+.brow.blead{border-left-color:var(--accent); background:var(--r1tint); color:var(--ink)}   /* не lead: тот занят типографским правилом с margin */
+.brow.blead .bpos{color:var(--accent-deep)}
+.brow.blead .bname{color:var(--ink)}
 .brow.fin{opacity:.92}
 .bpos{
-  font:700 clamp(20px,3vh,42px)/1 var(--mono); color:var(--muted-dark); text-align:center;
+  font:700 clamp(20px,3vh,42px)/1 var(--mono); color:var(--ink-2); text-align:center;
 }
-.brow.lead .bpos{color:var(--accent)}
+
 .bname{
   min-width:0; font:600 clamp(14px,2.3vh,32px)/1.2 var(--sans); color:var(--ink);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .bname em{
-  font:700 clamp(10px,1.2vh,14px)/1 var(--mono); font-style:normal; text-transform:uppercase;
-  letter-spacing:.04em; color:#B32433; margin-left:.7em;
+  font:700 clamp(11px,1.3vh,15px)/1 var(--mono); font-style:normal; text-transform:uppercase;
+  letter-spacing:.04em; color:var(--alert-deep); margin-left:.7em;
 }
 /* шаги инцидента: точками, без полосы */
 .bsteps{display:flex; gap:clamp(4px,.5vw,9px); align-items:center; min-width:0}
 .bstep{
-  flex:1 1 0; height:clamp(7px,1.2vh,16px); border-radius:99px;
-  background:var(--plate); border:1px solid var(--line);
+  flex:1 1 0; height:clamp(8px,1.3vh,17px); border-radius:99px;
+  background:#CBDBD5; border:1px solid var(--line-strong);
 }
 .bstep.on.s0{background:var(--r0); border-color:var(--r0)}
 .bstep.on.s1{background:var(--r1); border-color:var(--r1)}
@@ -533,22 +546,33 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
 .bstep.now.s0{border-color:var(--r0); box-shadow:inset 0 0 0 2px var(--r0)}
 .bstep.now.s1{border-color:var(--r1); box-shadow:inset 0 0 0 2px var(--r1)}
 .bstep.now.s2{border-color:var(--r2); box-shadow:inset 0 0 0 2px var(--r2)}
-.bbar{height:clamp(8px,1.4vh,18px); border-radius:99px; background:var(--plate); overflow:hidden}
+.bbar{height:clamp(9px,1.5vh,19px); border-radius:99px; background:#CBDBD5; overflow:hidden; border:1px solid var(--line-strong)}
 .bbar i{display:block; height:100%; border-radius:99px; background:var(--accent)}
 .bstate{
-  min-width:0; font:600 clamp(12px,1.5vh,18px)/1.35 var(--mono); letter-spacing:.03em;
-  text-transform:uppercase; color:var(--muted-dark);
+  min-width:0; font:700 clamp(13px,1.6vh,19px)/1.35 var(--mono); letter-spacing:.03em;
+  text-transform:uppercase; color:var(--ink-2);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
-.bstate i{font-style:normal; opacity:.5; margin:0 .4em}
+.bstate i{font-style:normal; opacity:.6; margin:0 .4em}
 .bnum{display:flex; flex-direction:column; align-items:flex-end; min-width:0}
 .bnum b{font:700 clamp(15px,2.5vh,34px)/1.05 var(--mono); color:var(--ink)}
 .bnum b.low{color:var(--r0)}
-.bnum b.neg{color:#B32433}   /* на табло сигнальный красный темнее: контраст выше 6:1 */
+.bnum b.neg{color:var(--alert-deep)}
 .bnum em{
-  font:600 clamp(10px,1.15vh,13px)/1.3 var(--mono); font-style:normal;
-  letter-spacing:.03em; text-transform:uppercase; color:var(--muted-dark); white-space:nowrap;
+  font:700 clamp(11px,1.2vh,14px)/1.3 var(--mono); font-style:normal;
+  letter-spacing:.03em; text-transform:uppercase; color:var(--ink-2); white-space:nowrap;
 }
+
+/* ОБЩИЙ СЧЁТ — главная цифра табло: своя плашка в фирменном зелёном */
+.bnum.score{
+  align-self:stretch; align-items:center; justify-content:center; min-height:0;
+  background:var(--accent); border-radius:clamp(6px,.7vw,12px);
+  padding:clamp(2px,.4vh,8px) clamp(8px,1vw,18px);
+  box-shadow:0 1px 0 rgba(255,255,255,.35) inset;
+}   /* stretch, иначе при десяти командах плашка раздувает свою строку */
+.bnum.score b{color:#fff; font-size:clamp(19px,3.2vh,44px)}
+.bnum.score em{color:rgba(255,255,255,.92)}
+.bnum.score.big b{font-size:clamp(24px,4.4vh,58px); color:#fff}   /* перебиваем .bnum.big, иначе цифра сливается с плашкой */
 .bhead{
   flex:0 0 auto; text-align:center; width:min(1400px,94vw); margin:0 auto;
   font:600 clamp(16px,2.2vh,28px)/1.3 var(--sans); color:var(--ink);
@@ -557,12 +581,25 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
   grid-template-columns:minmax(1.6em,auto) minmax(0,1.2fr) minmax(0,3fr) minmax(4.6em,auto);
   border-top-width:1px; color:var(--ink);
 }
-.brow.dp.ok{border-left-color:var(--accent); background:var(--r1soft)}
-.brow.dp.fail{border-left-color:var(--alert); background:#FBE9EC}
-.brow.dp.none{opacity:.7}
+.brow.dp.ok{border-left-color:var(--accent); background:var(--r1tint)}
+.brow.dp.fail{border-left-color:var(--alert-deep); background:var(--alert-tint)}
+.brow.dp.none{opacity:.75}
+.brow.dp.run{border-left-color:var(--r0); background:var(--card)}
 .brow.dp .bpos{font-size:clamp(20px,3.4vh,44px)}
-.brow.dp.ok .bpos{color:var(--accent)}
-.brow.dp.fail .bpos{color:#B32433}
+.brow.dp.ok .bpos{color:var(--accent-deep)}
+.brow.dp.fail .bpos{color:var(--alert-deep)}
+.brow.dp.fail .bstate.wide{color:var(--ink)}
+
+/* деплой идёт: бегущая полоса и кольцо вместо галочки */
+.bprog{
+  display:block; width:100%; height:clamp(9px,1.4vh,18px); border-radius:99px;
+  background:#CBDBD5; border:1px solid var(--line-strong); overflow:hidden;
+}
+.bprog i{display:block; height:100%; width:38%; border-radius:99px; background:var(--r0)}
+.bspin{
+  display:inline-block; width:clamp(16px,2.4vh,34px); height:clamp(16px,2.4vh,34px);
+  border-radius:50%; border:clamp(3px,.4vh,5px) solid #CBDBD5; border-top-color:var(--r0);
+}
 .bstate.wide{
   white-space:normal; text-transform:none; font-family:var(--sans); font-weight:600;
   font-size:clamp(13px,1.9vh,22px); color:var(--ink); letter-spacing:0;
@@ -570,7 +607,7 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
 .bnum.big b{font-size:clamp(20px,3.4vh,46px); color:var(--accent)}
 .bnote{
   flex:0 0 auto; text-align:center; width:min(1400px,94vw); margin:0 auto;
-  font:500 clamp(11px,1.35vh,15px)/1.5 var(--mono); color:var(--muted-dark);
+  font:600 clamp(12px,1.4vh,16px)/1.5 var(--mono); color:var(--ink-2);
 }
 
 @media (prefers-reduced-motion: no-preference){
@@ -584,4 +621,19 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
   @keyframes blin{from{opacity:0; transform:translateY(26px)}}
   .bstep.now{animation:bpulse 1.6s ease-in-out infinite}
   @keyframes bpulse{50%{opacity:.45}}
+
+  /* деплой: сначала все строки «катятся», потом по одной раскрываются */
+  .bprog i{animation:bslide 1.15s cubic-bezier(.45,.05,.55,.95) infinite}
+  @keyframes bslide{from{transform:translateX(-110%)}to{transform:translateX(300%)}}
+  .bspin{animation:bspin .9s linear infinite}
+  @keyframes bspin{to{transform:rotate(360deg)}}
+  .brow.dp.ok{animation:bpop .5s cubic-bezier(.2,.7,.2,1)}
+  @keyframes bpop{0%{transform:scale(.97); opacity:.35}55%{transform:scale(1.012)}to{transform:scale(1)}}
+  .brow.dp.fail{animation:bshake .45s cubic-bezier(.36,.07,.19,.97)}
+  @keyframes bshake{
+    0%{transform:translateX(0); opacity:.35}
+    20%{transform:translateX(-9px)} 40%{transform:translateX(7px)}
+    60%{transform:translateX(-4px)} 80%{transform:translateX(2px)}
+    to{transform:translateX(0)}
+  }
 }
