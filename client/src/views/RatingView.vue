@@ -36,7 +36,7 @@ const trial = computed(() => v.value.round && v.value.round.trial);
       <div class="wait">
         <div class="wl">Раунд закрыт</div>
         <div class="wv">Ждём ведущего</div>
-        <div class="ch">Он разберёт инциденты и откроет следующий раунд.</div>
+        <div class="ch">Он разберёт задачи и откроет следующий день.</div>
       </div>
     </div>
   </div>

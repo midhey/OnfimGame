@@ -28,7 +28,7 @@ function activate(k) {
           Ждём остальные команды.
         </p>
         <p v-else-if="!mods.length" class="hint">
-          Ни один инцидент не закрыт — модулей нет. Ждём ведущего.
+          Ни одна задача не доведена — внедрять нечего. Ждём ведущего.
         </p>
         <p v-else-if="team && team.youPickModule && picked === null" class="hint">
           Менеджер выбирает один модуль, который уйдёт в продакшн. Решайте по своей же
@@ -51,7 +51,7 @@ function activate(k) {
           @click="activate(k)">
           <span class="mno">{{ m.no }}</span>
           <span class="mname">{{ m.name }}</span>
-          <span class="minc">по инциденту «{{ m.incident }}»</span>
+          <span class="minc">по задаче «{{ m.incident }}»</span>
           <span v-if="picked === k" class="mok">выбран на внедрение</span>
         </button>
       </div>

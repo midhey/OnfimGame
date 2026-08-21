@@ -34,7 +34,7 @@ const dep = computed(() => (team.value && team.value.deploy) || null);
       <div v-else class="wait mt">
         <div class="wl">Модулей не было</div>
         <div class="ch">
-          {{ team && team.lost ? 'День провален: минуты кончились.' : 'Ни один инцидент не был закрыт.' }}
+          {{ team && team.lost ? 'День провален: минуты кончились.' : 'Ни одна задача не доведена до внедрения.' }}
         </div>
       </div>
 

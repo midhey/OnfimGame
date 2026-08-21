@@ -1,7 +1,7 @@
 /* Комната = одно занятие: ведущий, игроки, команды, дни недели, табло, логи.
    Состояние живёт в памяти процесса: занятие идёт час, база не нужна.
 
-   Фазы дня: round (инциденты) -> activate (менеджер выбирает модуль)
+   Фазы дня: round (задачи) -> activate (менеджер выбирает модуль)
    -> deploy (ведущий внедряет, кто-то падает) -> rating (лидерборд). */
 import { COMBAT_INCIDENTS, ROLES, ROUNDS, RULES, TEAM_NAMES } from './data.js';
 import {
@@ -189,7 +189,7 @@ export class Room {
     this.roundEndsAt = Date.now() + r.minutes * 60 * 1000;
     for (const team of this.activeTeams()) this.ensureRound(team);
     this.log('Начался день «' + r.title + '»: по ' + (r.perTeam || 1) +
-      ' инцидента на команду, ' + r.minutes + ' мин таймера, ' + r.budget + ' минут смены');
+      ' задач на команду, ' + r.minutes + ' мин таймера, ' + r.budget + ' минут смены');
   }
 
   start() {

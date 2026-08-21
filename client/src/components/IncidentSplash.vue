@@ -2,7 +2,7 @@
 import { onUnmounted, ref, watch } from 'vue';
 import { S } from '../store.js';
 
-/* Полноэкранное объявление нового инцидента. Следит за сменой инцидента
+/* Полноэкранное объявление новой задачи. Следит за сменой задачи
    у команды, показывается ~3 секунды, касание закрывает сразу. */
 const splash = ref(null);
 let timer = null;
@@ -54,7 +54,7 @@ onUnmounted(() => { if (timer) clearTimeout(timer); });
 <template>
   <div v-if="splash" class="splash" role="status" @click="close">
       <div class="spin">
-        <div class="sk">{{ splash.roundTitle }} &middot; инцидент {{ splash.idx }} из {{ splash.total }}</div>
+        <div class="sk">{{ splash.roundTitle }} &middot; задача {{ splash.idx }} из {{ splash.total }}</div>
         <div class="sk2">Новая заявка</div>
         <div class="sno">{{ splash.no }}</div>
         <div class="dotstrip inv" aria-hidden="true"></div>

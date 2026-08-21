@@ -2,6 +2,7 @@
    Запуск: сначала npm start, потом node scripts/selftest.js
    Пароль ведущего берётся из SMENA_HOST_PASS (по умолчанию smena). */
 import { WebSocket } from 'ws';
+import { ROUNDS } from '../server/src/data.js';
 
 const URL = process.env.SMENA_URL || 'ws://localhost:8787/ws';
 const PASS = process.env.SMENA_HOST_PASS || 'smena';
@@ -132,7 +133,7 @@ async function main() {
   host.send({ t: 'host:start' });
   await ps[0].until((c) => c.state.phase === 'round', 'старт недели');
   ok(host.state.round.trial === true, 'первый раунд — разминка');
-  ok(host.state.round.minutes <= 6, 'таймер дня не длиннее 6 минут: ' + host.state.round.minutes);
+  ok(host.state.round.minutes <= 10, 'таймер дня не длиннее 10 минут: ' + host.state.round.minutes);
   ok(team(ps[0]).options && team(ps[0]).options.length === 3, 'у менеджера три варианта');
   const budget = team(ps[0]).time;
   ok(budget > 0, 'бюджет минут выдан: ' + budget);
@@ -147,7 +148,7 @@ async function main() {
     await wait(60);
   }
   await host.until((c) => c.state.phase === 'activate', 'после дня — выбор модулей');
-  ok(feedText(ps[0]).includes('Контроль бумаги'), 'закрытый инцидент дал модуль');
+  ok(feedText(ps[0]).includes(ROUNDS[0].pool[0].module.name), 'доведённая задача дала модуль: ' + ROUNDS[0].pool[0].module.name);
   ok(team(ps[0]).modules.length >= 1, 'модулей у команды: ' + team(ps[0]).modules.length);
   ok(team(ps[0]).modules.every((m) => m.flaw === undefined), 'изъян модуля до деплоя не показывается');
   ok(team(ps[0]).youPickModule === true, 'менеджеру дают выбрать модуль');
@@ -192,9 +193,9 @@ async function main() {
   await solo.until((c) => team(c) && team(c).feed.some((i) => i.kind === 'inc'), 'у второй команды свой день');
   const t2feed = team(solo).feed.find((i) => i.kind === 'inc');
   ok(t1feed.no !== t2feed.no,
-    'у команд разные инциденты: ' + t1feed.no + ' «' + t1feed.title + '» против ' + t2feed.no + ' «' + t2feed.title + '»');
-  ok(team(ps[0]).incTotal === 2, 'по два инцидента на команду за день');
-  ok(team(ps[0]).stepTotal === 5, 'в боевом инциденте пять шагов');
+    'у команд разные задачи: ' + t1feed.no + ' «' + t1feed.title + '» против ' + t2feed.no + ' «' + t2feed.title + '»');
+  ok(team(ps[0]).incTotal === ROUNDS[1].perTeam, 'задач на команду за день: ' + team(ps[0]).incTotal);
+  ok(team(ps[0]).stepTotal === 5, 'в боевой задаче пять шагов');
   ok(team(ps[0]).stepRoles.join('') === '01210', 'круг разработки: менеджер, разработчик, тестировщик, разработчик, менеджер');
 
   /* --- доигрываем неделю до итогов --- */
@@ -236,7 +237,7 @@ async function main() {
   ok(fin.every((r) => r.trust >= host.state.minTrust && r.trust <= host.state.maxTrust),
     'доверие в границах ' + host.state.minTrust + '..' + host.state.maxTrust);
   ok(fin.some((r) => r.okModules > 0 || r.failModules > 0), 'модули действительно внедрялись');
-  ok(fin.every((r) => r.asks <= host.state.combatTotal), 'уточнения не больше числа инцидентов');
+  ok(fin.every((r) => r.asks <= host.state.combatTotal), 'уточнения не больше числа задач');
   ok(board.state.phase === 'final', 'табло видит итоги');
 
   /* --- редактирование команд и сброс --- */

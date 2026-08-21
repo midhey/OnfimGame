@@ -13,9 +13,9 @@ const trustChip = (dr) => (dr < 0 ? '−' : '+') + Math.abs(dr) + ' ' + (Math.ab
     {{ it.title }}<template v-if="it.trial"> · очки не считаются</template>
   </div>
 
-  <!-- шапка инцидента -->
+  <!-- шапка задачи -->
   <div v-else-if="it.kind === 'inc'" class="plate">
-    Инцидент {{ it.idx }} / {{ it.total }} &middot; {{ it.place }} &middot; {{ it.clock }}
+    Задача {{ it.idx }} / {{ it.total }} &middot; {{ it.place }} &middot; {{ it.clock }}
     <template v-if="it.channel"><br>Чат «{{ it.channel }}»</template>
   </div>
 
@@ -65,7 +65,7 @@ const trustChip = (dr) => (dr < 0 ? '−' : '+') + Math.abs(dr) + ' ' + (Math.ab
 
   <!-- на самом деле -->
   <template v-else-if="it.kind === 'truth'">
-    <div class="plate">Инцидент закрыт &middot; {{ it.no }}</div>
+    <div class="plate">Задача готова к внедрению &middot; {{ it.no }}</div>
     <div class="truth">
       <div class="tl">На самом деле</div>
       <p>{{ it.text }}</p>

@@ -1,10 +1,10 @@
 /* Правила одной команды внутри раунда. Ни сети, ни сессий — только
    «что происходит, когда роль выбрала вариант».
 
-   Раунд — один рабочий день. У каждой команды свой набор инцидентов из
-   пула дня (тема общая, задачи разные). Инцидент — пять шагов по кругу
+   Раунд — один рабочий день. У каждой команды свой набор задач из
+   пула дня (тема общая, задачи разные). Задача — пять шагов по кругу
    разработки: менеджер → разработчик → тестировщик → разработчик →
-   менеджер. Закрытый инцидент даёт МОДУЛЬ — конкретное решение.
+   менеджер. Доведённая задача даёт МОДУЛЬ — то, что вечером внедряют.
 
    В конце дня менеджер выбирает ОДИН модуль на внедрение, ведущий
    запускает деплой. Модуль с изъяном падает и стоит команде доверия.
@@ -24,7 +24,7 @@ export const fmtClock = (m) => {
   return pad2(Math.floor(x / 60)) + ':' + pad2(x % 60);
 };
 
-/* Цепочка шагов инцидента — круг разработки. */
+/* Цепочка шагов задачи — круг разработки. */
 export function stepsOf(inc) {
   const chain = [
     { role: 0, kind: 'chat', options: inc.manager.options },
@@ -42,21 +42,25 @@ export function stepsOf(inc) {
 export const stepOptions = (inc, step) => stepsOf(inc)[step].options;
 export const stepRole = (inc, step) => stepsOf(inc)[step].role;
 
-/* Какие инциденты дня достаются команде по её номеру: тема одна,
-   наборы разные, соседние команды не получают одинаковую пару. */
+/* Какие задачи дня достаются команде по её номеру: тема одна, наборы
+   разные. Соседние команды берут разные группы задач; когда группы
+   кончились, набор сдвигается на одну задачу — так у команд не совпадают
+   наборы, пока хватает пула. */
 export function planFor(round, teamIdx) {
   const pool = round.pool;
-  const per = Math.min(round.perTeam || 1, pool.length);
-  const base = teamIdx * per;
+  const len = pool.length;
+  const per = Math.min(round.perTeam || 1, len);
+  const groups = Math.max(Math.floor(len / per), 1);   // непересекающихся наборов в пуле
+  const group = teamIdx % groups;                      // соседи берут соседние группы
+  const shift = Math.floor(teamIdx / groups) % len;    // группы кончились — сдвигаем
   const out = [];
-  /* подряд идущие индексы — внутри плана инциденты не повторяются;
-     сдвиг на номер команды — у соседей наборы разные */
-  for (let k = 0; k < per; k++) out.push((base + k) % pool.length);
+  /* подряд идущие индексы: внутри одного плана задачи не повторяются */
+  for (let k = 0; k < per; k++) out.push((group * per + shift + k) % len);
   return out;
 }
 
 /* Сколько минут дать команде на день: столько, сколько стоят все самые
-   дорогие решения её собственных инцидентов плюс худшая карточка шума.
+   дорогие решения её собственных задач плюс худшая карточка шума.
    Значит ноль достигается ровно тогда, когда выбрано всё худшее. */
 const WORST_NOISE = Math.max(...NOISE.map((n) => Math.abs(n.time || 0)));
 
@@ -78,17 +82,17 @@ export function newTeam(id, name) {
     trust: RULES.startTrust,
     asks: 0,
     spare: 0,           // запас минут за закрытые раунды
-    incDone: 0,         // закрытых боевых инцидентов
+    incDone: 0,         // доведённых боевых задач
     okModules: 0,       // внедрённых без падения
     failModules: 0,     // упавших при деплое
     /* состояние текущего раунда */
     time: 0,
-    plan: [],           // индексы инцидентов дня для этой команды
-    planPos: 0,         // какой по счёту инцидент идёт
+    plan: [],           // индексы задач дня для этой команды
+    planPos: 0,         // какая по счёту задача идёт
     step: 0,
     clock: 0,
     managerPick: null,
-    incPicks: [],       // выбранные варианты текущего инцидента
+    incPicks: [],       // выбранные варианты текущей задачи
     modules: [],        // готовые модули этого раунда
     activated: null,    // индекс модуля, выбранного менеджером
     deploy: null,       // { ok, name, flaw, auto }
@@ -276,7 +280,7 @@ export function cutRound(team) {
   return true;
 }
 
-/* Инцидент закрыт — команда получила модуль. Изъян прячем до деплоя. */
+/* Задача доведена — команда получила модуль. Изъян прячем до деплоя. */
 function makeModule(team, inc) {
   const flawed = team.incPicks.find((o) => o && o.flaw);
   const mod = {
@@ -326,7 +330,7 @@ export function applyPick(team, round, k, isTrial) {
 
   const done = { role: def.role, label: opt.label, dt: opt.time || 0, dr: opt.trust || 0, incident: inc.title };
 
-  /* инцидент отыгран */
+  /* задача отыграна */
   if (team.step === chain.length) {
     push(team, { kind: 'truth', no: inc.ticketNo, title: inc.title, place: inc.place, text: inc.truth });
     if (!isTrial) team.incDone++;

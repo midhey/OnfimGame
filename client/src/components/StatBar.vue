@@ -14,7 +14,7 @@ const label = computed(() => {
   if (!r) return '';
   let s = r.trial ? 'Разминка' : 'Раунд ' + x.roundIndex + ' из ' + (x.roundsTotal - 1);
   if (x.phase === 'round' && team.value && team.value.incTotal) {
-    s += ' · инцидент ' + Math.min(team.value.incIndex + 1, team.value.incTotal) + '/' + team.value.incTotal;
+    s += ' · задача ' + Math.min(team.value.incIndex + 1, team.value.incTotal) + '/' + team.value.incTotal;
     if (team.value.stepTotal) s += ' · шаг ' + Math.min(team.value.step + 1, team.value.stepTotal) + '/' + team.value.stepTotal;
   }
   return s;

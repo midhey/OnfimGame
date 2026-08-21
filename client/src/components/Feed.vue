@@ -4,7 +4,7 @@ import FeedItem from './FeedItem.vue';
 
 const props = defineProps({ items: { type: Array, default: () => [] } });
 const box = ref(null);
-const opened = ref({});   // раскрытые вручную старые инциденты
+const opened = ref({});   // раскрытые вручную старые задачи
 
 function toBottom() {
   const el = box.value;
@@ -16,7 +16,7 @@ watch(
   { immediate: true }
 );
 
-/* лента группируется по инцидентам: старые сворачиваются в одну строку */
+/* лента группируется по задачам: старые сворачиваются в одну строку */
 const grouped = computed(() => {
   const head = [];
   const groups = [];
@@ -62,10 +62,10 @@ function toggle(key) {
     <FeedItem v-for="it in grouped.head" :key="it.id" :it="it" :live-id="liveId" />
 
     <template v-for="(g, gi) in grouped.groups" :key="g.key">
-      <!-- старые инциденты свёрнуты в одну строку -->
+      <!-- старые задачи свёрнуты в одну строку -->
       <template v-if="gi < grouped.groups.length - 1">
         <button type="button" class="arch" @click="toggle(g.key)">
-          <span class="an">Инцидент {{ g.inc.idx }}/{{ g.inc.total }} &middot; {{ g.inc.no }}</span>
+          <span class="an">Задача {{ g.inc.idx }}/{{ g.inc.total }} &middot; {{ g.inc.no }}</span>
           <span class="as">
             {{ fmt(g.dt) }} мин<template v-if="g.dr"> &middot; доверие {{ fmt(g.dr) }}</template>
             &middot; {{ opened[g.key] ? 'скрыть' : 'показать' }}
@@ -76,7 +76,7 @@ function toggle(key) {
         </div>
       </template>
 
-      <!-- текущий инцидент — целиком -->
+      <!-- текущая задача — целиком -->
       <template v-else>
         <FeedItem v-for="it in g.items" :key="it.id" :it="it" :live-id="liveId" />
       </template>

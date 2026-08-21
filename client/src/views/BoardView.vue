@@ -108,7 +108,7 @@ function watch() {
       </div>
       <TransitionGroup name="flip" tag="div" class="brows" :style="{ '--rows': Math.max(ranked.length, 1) }">
         <div v-for="(team, i) in ranked" :key="team.id"
-             class="brow" :class="{ top: i === 0, fin: team.roundDone }">
+             class="brow rd" :class="{ lead: i === 0, fin: team.roundDone }">
           <span class="bpos">{{ i + 1 }}</span>
           <span class="bname">{{ team.name }}</span>
           <span class="bsteps">
@@ -120,7 +120,7 @@ function watch() {
           </span>
           <span class="bstate">
             <template v-if="team.roundDone">{{ team.cut ? 'не успели' : 'раунд отыгран' }}</template>
-            <template v-else>инцидент {{ Math.min(team.incIndex + 1, team.incTotal) }}/{{ team.incTotal }}<i>·</i>{{ team.status }}</template>
+            <template v-else>задача {{ Math.min(team.incIndex + 1, team.incTotal) }}/{{ team.incTotal }}<i>·</i>{{ team.status }}</template>
           </span>
           <span class="bnum"><b>{{ team.asks }}</b><em>уточнений</em></span>
           <span class="bnum"><b :class="{ low: team.trust <= 2, neg: team.trust < 0 }">{{ team.trust }}</b><em>доверие</em></span>
@@ -134,12 +134,12 @@ function watch() {
     <main v-else-if="v.phase === 'activate'" class="bmain">
       <div class="bhead">Менеджеры выбирают, что уйдёт в продакшн</div>
       <div class="brows" :style="{ '--rows': Math.max(ranked.length, 1) }">
-        <div v-for="(team, i) in ranked" :key="team.id" class="brow" :class="{ top: i === 0 }">
+        <div v-for="(team, i) in ranked" :key="team.id" class="brow" :class="{ lead: i === 0 }">
           <span class="bpos">{{ i + 1 }}</span>
           <span class="bname">{{ team.name }}</span>
           <span class="bstate wide">
             <template v-if="team.lost">день провален — внедрять нечего</template>
-            <template v-else-if="!team.modulesReady">инцидентов не закрыто</template>
+            <template v-else-if="!team.modulesReady">задач не доведено</template>
             <template v-else-if="team.picked">модуль выбран</template>
             <template v-else>выбирают из {{ team.modulesReady }}</template>
           </span>
@@ -153,7 +153,7 @@ function watch() {
       <div class="bhead">Деплой модулей в продакшн</div>
       <div class="brows" :style="{ '--rows': Math.max(ranked.length, 1) }">
         <div v-for="(team, i) in ranked" :key="team.id"
-             class="brow dep" :class="team.deploy ? (team.deploy.ok ? 'ok' : 'fail') : 'none'">
+             class="brow dp" :class="team.deploy ? (team.deploy.ok ? 'ok' : 'fail') : 'none'">
           <span class="bpos">{{ team.deploy ? (team.deploy.ok ? '✓' : '×') : '—' }}</span>
           <span class="bname">{{ team.name }}</span>
           <span class="bstate wide">
@@ -169,7 +169,7 @@ function watch() {
     <main v-else class="bmain">
       <div class="brows" :style="{ '--rows': Math.max(leaders.length, 1) }">
         <div v-for="(r, i) in leaders" :key="r.teamId"
-             class="brow lb" :class="{ top: r.rank === 1 }"
+             class="brow lbd" :class="{ lead: r.rank === 1 }"
              :style="{ animationDelay: revealDelay(i) }">
           <span class="bpos">{{ r.rank }}</span>
           <span class="bname">
