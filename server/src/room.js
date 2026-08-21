@@ -404,7 +404,7 @@ export class Room {
       hasHost: this.hasHost(),
       roles: ROLES.map((x) => ({ key: x.key, name: x.name, gen: x.gen, job: x.job })),
       round: r
-        ? { title: r.title, trial: !!r.trial, perTeam: r.perTeam || 1, budget: r.budget, minutes: r.minutes }
+        ? { title: r.title, note: r.note || '', trial: !!r.trial, perTeam: r.perTeam || 1, budget: r.budget, minutes: r.minutes }
         : null,
       you: player
         ? {

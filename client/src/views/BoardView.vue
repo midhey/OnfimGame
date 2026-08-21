@@ -39,7 +39,10 @@ const label = computed(() => {
   if (x.phase === 'activate') return 'Выбор модулей · ' + day;
   if (x.phase === 'deploy') return 'Деплой · ' + day;
   if (x.phase === 'rating') return 'Итоги ' + day;
-  return x.round.trial ? 'Разминка' : x.round.title;
+  if (x.round.trial) return 'Разминка';
+  /* в дне показываем тему: у команд задачи разные, тема одна */
+  const theme = (x.round.note || '').replace(/^Тема дня:\s*/, '');
+  return theme ? x.round.title + ' · ' + theme : x.round.title;
 });
 
 function watch() {

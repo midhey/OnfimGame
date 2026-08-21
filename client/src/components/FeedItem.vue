@@ -3,6 +3,7 @@ defineProps({
   it: { type: Object, required: true },
   liveId: { type: Number, default: null }
 });
+const dayTheme = (note) => note.replace(/^Тема дня:\s*/, 'тема дня — ');
 const timeChip = (dt) => (dt < 0 ? '−' : '+') + Math.abs(dt) + ' мин';
 const trustChip = (dr) => (dr < 0 ? '−' : '+') + Math.abs(dr) + ' ' + (Math.abs(dr) === 1 ? 'доверие' : 'доверия');
 </script>
@@ -10,7 +11,7 @@ const trustChip = (dr) => (dr < 0 ? '−' : '+') + Math.abs(dr) + ' ' + (Math.ab
 <template>
   <!-- шапка раунда -->
   <div v-if="it.kind === 'round'" class="plate strong">
-    {{ it.title }}<template v-if="it.trial"> · очки не считаются</template>
+    {{ it.title }}<template v-if="it.note"> · {{ dayTheme(it.note) }}</template><template v-if="it.trial"> · очки не считаются</template>
   </div>
 
   <!-- шапка задачи -->

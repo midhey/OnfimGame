@@ -223,6 +223,7 @@ export function startRound(team, round, roundIndex, teamIdx) {
   push(team, {
     kind: 'round',
     title: round.title,
+    note: round.note || '',
     trial: !!round.trial,
     incTotal: team.plan.length
   });
