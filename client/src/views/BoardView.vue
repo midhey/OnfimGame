@@ -29,34 +29,71 @@ const bestScore = computed(() => Math.max(1, ...leaders.value.map((r) => r.score
 const barWidth = (r) =>
   Math.max(3, Math.round((100 * Math.max(r.score || 0, 0)) / bestScore.value)) + '%';
 
-/* Деплой не показываем сразу: сперва все строки «катятся», потом результат
-   раскрывается по одной команде. Данные уже пришли — тянем только показ. */
+/* Деплой идёт как настоящий пайплайн: у каждой команды по очереди загораются
+   стадии, и только на последней видно, встал модуль или упал. Результат уже
+   пришёл с сервера — тянем только показ.
+
+   Состояние строки: stage — сколько стадий пройдено, phase:
+     run   — пайплайн идёт
+     flash — стадии кончились, строка окрасилась, полоса ещё видна
+     done  — на месте полосы текст результата */
+const STAGES = ['сборка', 'тесты', 'выкладка', 'прод'];
 const noAnim = typeof window !== 'undefined' && window.matchMedia
   && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const shownCount = ref(0);
-let revealTimer = null;
+const pipe = ref({});
+let timers = [];
+const clearTimers = () => { for (const t of timers) clearTimeout(t); timers = []; };
 
-function startDeployReveal(total) {
-  clearTimeout(revealTimer);
-  if (noAnim || total < 1) { shownCount.value = total; return; }
-  shownCount.value = 0;
-  const step = Math.max(450, Math.min(900, 3600 / total));
-  const tick = () => {
-    shownCount.value += 1;
-    if (shownCount.value < total) revealTimer = setTimeout(tick, step);
+function startPipeline(teams) {
+  clearTimers();
+  const start = {};
+  for (const t of teams) {
+    /* внедрять нечего — пайплайна нет, сразу результат */
+    const running = !!t.deploy && !noAnim;
+    start[t.id] = { stage: running ? 0 : STAGES.length, phase: running ? 'run' : 'done' };
+  }
+  pipe.value = start;
+  if (noAnim) return;
+
+  const set = (id, patch) => {
+    pipe.value = { ...pipe.value, [id]: { ...pipe.value[id], ...patch } };
   };
-  revealTimer = setTimeout(tick, 1400);   // пауза, пока «идёт деплой» у всех
+  teams.forEach((team, i) => {
+    if (!team.deploy) return;
+    const from = 400 + i * 260;                 /* строки стартуют лестницей */
+    const step = 520 + (i % 3) * 70;            /* и идут чуть разным темпом */
+    for (let s = 1; s <= STAGES.length; s++) {
+      timers.push(setTimeout(() => set(team.id, { stage: s }), from + s * step));
+    }
+    const end = from + STAGES.length * step;
+    timers.push(setTimeout(() => set(team.id, { phase: 'flash' }), end));
+    timers.push(setTimeout(() => set(team.id, { phase: 'done' }), end + (team.deploy.ok ? 550 : 950)));
+  });
 }
 
 watch(() => v.value && v.value.phase, (p) => {
-  if (p === 'deploy') startDeployReveal(ranked.value.length);
-  else { clearTimeout(revealTimer); shownCount.value = 0; }
+  if (p === 'deploy') startPipeline(ranked.value);
+  else { clearTimers(); pipe.value = {}; }
 }, { immediate: true });
 
-onUnmounted(() => clearTimeout(revealTimer));
+onUnmounted(clearTimers);
 
-const shown = (i) => i < shownCount.value;
-const deployRunning = computed(() => shownCount.value < ranked.value.length);
+const stateOf = (team) =>
+  pipe.value[team.id] || { stage: team.deploy ? 0 : STAGES.length, phase: team.deploy ? 'run' : 'done' };
+
+/* пока пайплайн идёт, строка нейтральная; дальше — цвет результата */
+function deployClass(team) {
+  if (!team.deploy) return 'none';
+  return stateOf(team).phase === 'run' ? 'run' : (team.deploy.ok ? 'ok' : 'fail');
+}
+/* последняя стадия у упавшего модуля краснеет, а не зеленеет */
+function stageClass(team, k) {
+  const st = stateOf(team);
+  const last = k === STAGES.length - 1;
+  const fell = !!team.deploy && !team.deploy.ok && last;
+  return { on: st.stage > k && !fell, bad: fell && st.stage > k, now: st.stage === k && st.phase === 'run' };
+}
+const deployRunning = computed(() => ranked.value.some((t) => stateOf(t).phase !== 'done'));
 
 const label = computed(() => {
   const x = v.value;
@@ -182,23 +219,27 @@ function connect() {
 
     <!-- ДЕПЛОЙ: у кого поднялось, у кого упало -->
     <main v-else-if="v.phase === 'deploy'" class="bmain">
-      <div class="bhead">{{ deployRunning ? 'Выкладываем модули в прод…' : 'Деплой окончен' }}</div>
+      <div class="bhead">{{ deployRunning ? 'Пайплайн пошёл: сборка, тесты, выкладка, прод' : 'Деплой окончен' }}</div>
       <div class="brows" :style="{ '--rows': Math.max(ranked.length, 1) }">
-        <div v-for="(team, i) in ranked" :key="team.id" class="brow dp"
-             :class="shown(i) ? (team.deploy ? (team.deploy.ok ? 'ok' : 'fail') : 'none') : 'run'">
+        <div v-for="team in ranked" :key="team.id" class="brow dp" :class="deployClass(team)">
           <span class="bpos">
-            <template v-if="!shown(i)"><i class="bspin"></i></template>
+            <template v-if="team.deploy && stateOf(team).phase === 'run'"><i class="bspin"></i></template>
             <template v-else>{{ team.deploy ? (team.deploy.ok ? '✓' : '×') : '—' }}</template>
           </span>
           <span class="bname">{{ team.name }}</span>
           <span class="bstate wide">
-            <span v-if="!shown(i)" class="bprog"><i></i></span>
+            <span v-if="stateOf(team).phase !== 'done'" class="bpipe">
+              <template v-for="(s, k) in STAGES" :key="k">
+                <i v-if="k" class="barr" aria-hidden="true">→</i>
+                <i class="bstg" :class="stageClass(team, k)">{{ s }}</i>
+              </template>
+            </span>
             <template v-else-if="!team.deploy">{{ team.lost ? 'день провален' : 'нечего внедрять' }}</template>
             <template v-else>{{ team.deploy.name }}<template v-if="!team.deploy.ok"><i>·</i>{{ team.deploy.flaw }}</template></template>
           </span>
           <span class="bnum">
-            <b :class="{ neg: shown(i) && team.deploy && !team.deploy.ok }">
-              <template v-if="!shown(i)">идём</template>
+            <b :class="{ neg: team.deploy && !team.deploy.ok && stateOf(team).phase !== 'run' }">
+              <template v-if="team.deploy && stateOf(team).phase === 'run'">{{ STAGES[Math.min(stateOf(team).stage, 3)] }}</template>
               <template v-else>{{ team.deploy ? (team.deploy.ok ? 'в проде' : 'откат') : '—' }}</template>
             </b>
             <em>итог</em>

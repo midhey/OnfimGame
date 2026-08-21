@@ -283,7 +283,9 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
 .dep .dt{margin:0; font-size:16px; line-height:1.45}
 .dep.run{border-top-color:var(--r0)}
 .dep.run .dl{color:var(--r0)}
-.dep.run .bprog{height:12px}
+.dep.run .bpipe{margin:10px 0 2px}
+.dep .bstg{font-size:11px; padding:5px 9px}
+.dep .barr{font-size:12px}
 .bpos .bspin{vertical-align:middle}
 .dmod{font:600 15px/1.35 var(--sans); margin:0 0 6px}
 .dmod.ok{color:var(--accent)}
@@ -590,12 +592,21 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
 .brow.dp.fail .bpos{color:var(--alert-deep)}
 .brow.dp.fail .bstate.wide{color:var(--ink)}
 
-/* деплой идёт: бегущая полоса и кольцо вместо галочки */
-.bprog{
-  display:block; width:100%; height:clamp(9px,1.4vh,18px); border-radius:99px;
-  background:#CBDBD5; border:1px solid var(--line-strong); overflow:hidden;
+/* деплой идёт пайплайном: стадии загораются по очереди */
+.bpipe{display:flex; align-items:center; gap:clamp(3px,.45vw,9px); min-width:0; flex-wrap:wrap; row-gap:4px}
+.bstg{
+  flex:0 1 auto; min-width:0; white-space:nowrap;
+  font:700 clamp(11px,1.3vh,16px)/1 var(--mono); letter-spacing:.06em; text-transform:uppercase;
+  color:var(--ink-2); background:#CBDBD5; border:1px solid var(--line-strong);
+  border-radius:99px; padding:clamp(3px,.55vh,8px) clamp(5px,.65vw,12px);
 }
-.bprog i{display:block; height:100%; width:38%; border-radius:99px; background:var(--r0)}
+.bstg.on{background:var(--accent); border-color:var(--accent); color:#fff}
+.bstg.bad{background:var(--alert-deep); border-color:var(--alert-deep); color:#fff}
+.bstg.now{background:#fff; border-color:var(--r0); box-shadow:inset 0 0 0 2px var(--r0); color:var(--ink)}
+.barr{
+  flex:0 0 auto; font:700 clamp(12px,1.45vh,18px)/1 var(--mono); font-style:normal;
+  color:var(--ink-2); opacity:.55;
+}
 .bspin{
   display:inline-block; width:clamp(16px,2.4vh,34px); height:clamp(16px,2.4vh,34px);
   border-radius:50%; border:clamp(3px,.4vh,5px) solid #CBDBD5; border-top-color:var(--r0);
@@ -623,8 +634,9 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
   @keyframes bpulse{50%{opacity:.45}}
 
   /* деплой: сначала все строки «катятся», потом по одной раскрываются */
-  .bprog i{animation:bslide 1.15s cubic-bezier(.45,.05,.55,.95) infinite}
-  @keyframes bslide{from{transform:translateX(-110%)}to{transform:translateX(300%)}}
+  .bstg{transition:background-color .25s ease, border-color .25s ease, color .25s ease}
+  .bstg.now{animation:bstage 1s ease-in-out infinite}
+  @keyframes bstage{50%{box-shadow:inset 0 0 0 2px var(--r0), 0 0 0 4px rgba(224,134,47,.22)}}
   .bspin{animation:bspin .9s linear infinite}
   @keyframes bspin{to{transform:rotate(360deg)}}
   .brow.dp.ok{animation:bpop .5s cubic-bezier(.2,.7,.2,1)}

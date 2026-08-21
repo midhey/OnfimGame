@@ -7,14 +7,30 @@ const v = computed(() => S.view);
 const team = computed(() => v.value.team);
 const dep = computed(() => (team.value && team.value.deploy) || null);
 
-/* Сначала показываем, что деплой идёт, и только потом — результат.
-   Данные уже пришли с сервера, тянем только показ. */
+/* Деплой идёт пайплайном: стадии загораются по очереди, результат — на
+   последней. Данные уже пришли с сервера, тянем только показ. */
+const STAGES = ['сборка', 'тесты', 'выкладка', 'прод'];
 const noAnim = typeof window !== 'undefined' && window.matchMedia
   && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const running = ref(!noAnim);
-let t = null;
-onMounted(() => { if (!noAnim) t = setTimeout(() => { running.value = false; }, 2200); });
-onUnmounted(() => clearTimeout(t));
+const running = ref(!noAnim && !!dep.value);
+const stage = ref(running.value ? 0 : STAGES.length);
+let timers = [];
+
+onMounted(() => {
+  if (!running.value) return;
+  for (let s = 1; s <= STAGES.length; s++) {
+    timers.push(setTimeout(() => { stage.value = s; }, s * 480));
+  }
+  timers.push(setTimeout(() => { running.value = false; }, STAGES.length * 480 + 700));
+});
+onUnmounted(() => { for (const t of timers) clearTimeout(t); });
+
+/* последняя стадия у упавшего модуля краснеет */
+const stageClass = (k) => {
+  const last = k === STAGES.length - 1;
+  const fell = dep.value && !dep.value.ok && last;
+  return { on: stage.value > k && !fell, bad: fell && stage.value > k, now: stage.value === k && running.value };
+};
 </script>
 
 <template>
@@ -29,12 +45,17 @@ onUnmounted(() => clearTimeout(t));
         <h1 v-else>Деплой упал</h1>
       </div>
 
-      <!-- идёт -->
+      <!-- идёт пайплайн -->
       <div v-if="running" class="dep run">
-        <div class="dl">идёт деплой</div>
+        <div class="dl">пайплайн идёт</div>
         <div class="dn">{{ dep ? dep.name : 'модуля нет' }}</div>
-        <span class="bprog"><i></i></span>
-        <p class="dt mt">Сейчас увидим, держится ли он на проде.</p>
+        <span class="bpipe">
+          <template v-for="(s, k) in STAGES" :key="k">
+            <i v-if="k" class="barr" aria-hidden="true">→</i>
+            <i class="bstg" :class="stageClass(k)">{{ s }}</i>
+          </template>
+        </span>
+        <p class="dt mt">Сейчас увидим, держится ли модуль на проде.</p>
       </div>
 
       <template v-else>
