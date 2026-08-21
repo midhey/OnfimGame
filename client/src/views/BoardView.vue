@@ -88,12 +88,17 @@ function startPipeline(teams) {
     if (!team.deploy) return;
     const from = 400 + i * 260;                 /* строки стартуют лестницей */
     const step = 520 + (i % 3) * 70;            /* и идут чуть разным темпом */
-    for (let s = 1; s <= STAGES.length; s++) {
-      timers.push(setTimeout(() => set(team.id, { stage: s }), from + s * step));
+    /* упавший пайплайн не доходит до конца: он встаёт на своей стадии */
+    const last = team.deploy.ok ? STAGES.length : Math.min(team.deploy.stage + 1, STAGES.length);
+    let at = from;
+    for (let s = 1; s <= last; s++) {
+      /* стадия с перезапуском идёт дольше — как в жизни */
+      at += step * (team.deploy.retry === s - 1 ? 1.8 : 1);
+      const when = at;
+      timers.push(setTimeout(() => set(team.id, { stage: s }), when));
     }
-    const end = from + STAGES.length * step;
-    timers.push(setTimeout(() => set(team.id, { phase: 'flash' }), end));
-    timers.push(setTimeout(() => set(team.id, { phase: 'done' }), end + (team.deploy.ok ? 550 : 950)));
+    timers.push(setTimeout(() => set(team.id, { phase: 'flash' }), at));
+    timers.push(setTimeout(() => set(team.id, { phase: 'done' }), at + (team.deploy.ok ? 550 : 950)));
   });
 }
 
@@ -112,12 +117,17 @@ function deployClass(team) {
   if (!team.deploy) return 'none';
   return stateOf(team).phase === 'run' ? 'run' : (team.deploy.ok ? 'ok' : 'fail');
 }
-/* последняя стадия у упавшего модуля краснеет, а не зеленеет */
+/* стадия, на которой упало, краснеет; остальные после неё не загораются */
 function stageClass(team, k) {
   const st = stateOf(team);
-  const last = k === STAGES.length - 1;
-  const fell = !!team.deploy && !team.deploy.ok && last;
-  return { on: st.stage > k && !fell, bad: fell && st.stage > k, now: st.stage === k && st.phase === 'run' };
+  const d = team.deploy;
+  const fell = !!d && !d.ok && k === d.stage;
+  return {
+    on: st.stage > k && !fell,
+    bad: fell && st.stage > k,
+    now: st.stage === k && st.phase === 'run',
+    again: !!d && d.ok && d.retry === k && st.stage > k
+  };
 }
 const deployRunning = computed(() => ranked.value.some((t) => stateOf(t).phase !== 'done'));
 
@@ -125,7 +135,7 @@ const label = computed(() => {
   const x = v.value;
   if (!x) return '';
   if (x.phase === 'lobby') return 'Ждём команды';
-  if (x.phase === 'final') return 'Итоги смены';
+  if (x.phase === 'final') return 'Итоги недели';
   if (!x.round) return '';
   const day = x.round.trial ? 'разминки' : 'дня «' + x.round.title + '»';
   if (x.phase === 'activate') return 'Выбор модулей · ' + day;
@@ -264,11 +274,14 @@ function connect() {
             <span v-if="stateOf(team).phase !== 'done'" class="bpipe">
               <template v-for="(s, k) in STAGES" :key="k">
                 <i v-if="k" class="barr" aria-hidden="true">→</i>
-                <i class="bstg" :class="stageClass(team, k)">{{ s }}</i>
+                <i class="bstg" :class="stageClass(team, k)">{{ s }}<em v-if="stageClass(team, k).again"> ×2</em></i>
               </template>
             </span>
             <template v-else-if="!team.deploy">{{ team.lost ? 'день провален' : 'нечего внедрять' }}</template>
-            <template v-else>{{ team.deploy.name }}<template v-if="!team.deploy.ok"><i>·</i>{{ team.deploy.flaw }}</template></template>
+            <template v-else>
+              <i v-if="!team.deploy.ok" class="bfell">{{ team.deploy.stageName }}</i>
+              {{ team.deploy.name }}<template v-if="!team.deploy.ok"><i>·</i>{{ team.deploy.flaw }}</template>
+            </template>
           </span>
           <span class="bnum">
             <b :class="{ neg: team.deploy && !team.deploy.ok && stateOf(team).phase !== 'run' }">

@@ -33,7 +33,7 @@ function drop() {
         </p>
         <p v-else class="hint">
           {{ mySeat.team.name }} · {{ v.roles[mySeat.role].job }}
-          <template v-if="v.phase !== 'lobby'"><br>Смена уже идёт, сейчас откроется ваш раунд.</template>
+          <template v-if="v.phase !== 'lobby'"><br>Неделя уже идёт, сейчас откроется ваш день.</template>
           <template v-else><br>Ждём ведущего: сначала разминка, потом рабочая неделя — пять дней на время.</template>
         </p>
       </div>

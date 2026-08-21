@@ -12,7 +12,7 @@ const left = computed(() => timerLeft());
 const label = computed(() => {
   const x = v.value;
   if (x.phase === 'lobby') return 'Лобби';
-  if (x.phase === 'final') return 'Итоги смены';
+  if (x.phase === 'final') return 'Итоги недели';
   const name = x.round ? x.round.title : '';
   if (x.phase === 'round') return name;
   if (x.phase === 'activate') return 'Выбор модулей · ' + name.toLowerCase();
@@ -169,7 +169,7 @@ function endRound() {
           <!-- РЕЙТИНГ / ИТОГИ -->
           <template v-else>
             <h1 v-if="v.phase === 'rating'">{{ v.round && v.round.trial ? 'Разминка сыграна' : 'Рейтинг' }}</h1>
-            <h1 v-else>Итоги смены</h1>
+            <h1 v-else>Итоги недели</h1>
             <template v-if="v.truth">
               <div class="truth mb">
                 <div class="tl">На самом деле &middot; {{ v.truth.title }} &middot; {{ v.truth.no }}</div>
@@ -225,7 +225,7 @@ function endRound() {
 
         <template v-else-if="v.phase === 'rating'">
           <button class="btn primary" @click="go('host:next')">
-            {{ lastRound ? 'Итоги смены' : 'Следующий день' }}
+            {{ lastRound ? 'Итоги недели' : 'Следующий день' }}
           </button>
         </template>
 

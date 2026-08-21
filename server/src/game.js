@@ -265,7 +265,7 @@ function loseRound(team) {
   team.trust = clamp(team.trust - RULES.lostTrustPenalty, RULES.minTrust, RULES.maxTrust);
   push(team, {
     kind: 'plate',
-    text: 'Минуты смены кончились. День провален, доверие −' + RULES.lostTrustPenalty
+    text: 'Минуты дня кончились. День провален, доверие −' + RULES.lostTrustPenalty
   });
   snapshot(team);
 }
@@ -283,13 +283,22 @@ export function cutRound(team) {
 
 /* Задача доведена — команда получила модуль. Изъян прячем до деплоя. */
 function makeModule(team, inc) {
-  const flawed = team.incPicks.find((o) => o && o.flaw);
+  const chain = stepsOf(inc);
+  const at = team.incPicks.findIndex((o) => o && o.flaw);
+  const flawed = at < 0 ? null : team.incPicks[at];
+  /* запоминаем, на каком шаге появился изъян и что там было правильным
+     решением — на деплое это покажем как «а надо было» */
+  const step = at < 0 ? null : chain[at];
+  const better = step ? step.options.find((o) => !o.flaw) : null;
   const mod = {
     no: inc.ticketNo,
     name: inc.module ? inc.module.name : inc.title,
     short: inc.module ? inc.module.short : inc.title,
     incident: inc.title,
-    flaw: flawed ? flawed.flaw : null
+    flaw: flawed ? flawed.flaw : null,
+    flawWho: step ? ROLES[step.role].name : null,
+    flawPick: flawed ? flawed.label : null,
+    better: better ? better.label : null
   };
   team.modules.push(mod);
   push(team, {
@@ -371,6 +380,17 @@ export function activate(team, k) {
 }
 
 /* Ведущий запускает деплой: модуль с изъяном падает. */
+/* Стадии пайплайна: их видят и табло, и игрок. Модуль с изъяном падает
+   на случайной стадии — где именно, решает сервер один раз, чтобы у всех
+   экранов картинка была одна. */
+export const STAGES = ['сборка', 'тесты', 'выкладка', 'прод'];
+const STAGE_FALL = [
+  'Сборка не собралась.',
+  'Автотесты не прошли.',
+  'Выкладка сорвалась и всё вернули назад.',
+  'На проде сломалось у живых людей.'
+];
+
 export function runDeploy(team) {
   if (team.lost || !team.modules.length) {
     team.deploy = null;
@@ -380,7 +400,19 @@ export function runDeploy(team) {
   if (team.activated === null) { team.activated = 0; auto = true; }
   const mod = team.modules[team.activated];
   const ok = !mod.flaw;
-  team.deploy = { ok, name: mod.name, short: mod.short, incident: mod.incident, flaw: mod.flaw, auto };
+  /* упал — на случайной стадии; прошёл — на случайной стадии могла быть
+     заминка, но пайплайн её пережил */
+  const stage = Math.floor(Math.random() * STAGES.length);
+  team.deploy = {
+    ok, name: mod.name, short: mod.short, incident: mod.incident, flaw: mod.flaw, auto,
+    stage,
+    stageName: STAGES[stage],
+    what: ok ? null : STAGE_FALL[stage],
+    who: mod.flawWho,
+    pick: mod.flawPick,
+    better: mod.better,
+    retry: ok && Math.random() < 0.5 ? stage : null
+  };
   if (ok) team.okModules++;
   else {
     team.failModules++;

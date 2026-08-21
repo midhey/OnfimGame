@@ -5,7 +5,7 @@
   --bg:#EFF3F1;
   --card:#FFFFFF;
   --ink:#212B27;
-  --muted:#6E7B76;
+  --muted:#5C6A64;   /* второстепенный текст: было #6E7B76 — контраст 3.9, ниже нормы */
   --accent:#007A65;
   --accent-deep:#005D4C;
   --alert:#D93F51;
@@ -100,7 +100,7 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
 .inp.code{text-align:center; font-size:26px; letter-spacing:.22em}
 .inp:focus{border-color:var(--accent)}
 .inp::placeholder{color:var(--muted); letter-spacing:.04em; font-weight:400; font-size:15px}
-.err{font:600 13px/1.4 var(--sans); color:var(--alert); margin:8px 2px 0; text-align:center}
+.err{font:600 13px/1.4 var(--sans); color:var(--alert-deep); margin:8px 2px 0; text-align:center}
 .hint{font-size:14px; line-height:1.4; color:var(--muted); margin:0 0 14px}
 .mt{margin-top:16px}
 .mb{margin-bottom:18px}
@@ -174,7 +174,7 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
 .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:9px}
 .chip{font:600 12px/1.25 var(--mono); border:1px solid var(--line); background:var(--bg);
       border-radius:6px; padding:3px 7px; color:var(--muted)}
-.chip.bad{color:var(--alert); border-color:rgba(217,63,81,.4); background:#FBE9EC}
+.chip.bad{color:var(--alert-deep); border-color:rgba(168,31,46,.45); background:#FBE9EC}
 .chip.good{color:var(--accent); border-color:rgba(0,122,101,.4); background:var(--r1soft)}
 
 /* «на самом деле» — с фирменной точечной полосой */
@@ -222,7 +222,7 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
 .drow:first-child .drank{color:var(--accent)}
 .dmain{flex:1 1 auto; min-width:0}
 .dname{font:600 15px/1.3 var(--sans); display:flex; gap:8px; align-items:baseline}
-.dflag{font:600 10px/1.4 var(--mono); text-transform:uppercase; letter-spacing:.04em; color:var(--alert)}
+.dflag{font:600 10px/1.4 var(--mono); text-transform:uppercase; letter-spacing:.04em; color:var(--alert-deep)}
 .dbar{height:10px; border-radius:5px; background:var(--plate); margin:7px 0 6px; overflow:hidden}
 .dbar span{display:block; height:100%; border-radius:5px; background:var(--accent)}
 .dsub{font:400 11px/1.5 var(--mono); color:var(--muted)}
@@ -280,18 +280,37 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
 .dep.bad{border-top-color:var(--alert)}
 .dep .dl{font:600 10px/1.4 var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
 .dep.good .dl{color:var(--accent)}
-.dep.bad .dl{color:var(--alert)}
+.dep.bad .dl{color:var(--alert-deep)}
 .dep .dn{font:700 22px/1.25 var(--sans); margin:6px 0 8px}
 .dep .dt{margin:0; font-size:16px; line-height:1.45}
 .dep.run{border-top-color:var(--r0)}
 .dep.run .dl{color:var(--r0-deep)}
+/* разбор падения деплоя: отдельным окном, простыми словами */
+.why{
+  background:var(--card); border:1px solid var(--line); border-left:4px solid var(--alert);
+  border-radius:12px; padding:14px;
+}
+.why .wq{
+  font:700 10px/1.4 var(--mono); letter-spacing:.08em; text-transform:uppercase;
+  color:var(--alert-deep); margin:12px 0 3px;
+}
+.why .wq:first-child{margin-top:0}
+.why p{margin:0; font-size:16px; line-height:1.45}
+.why .chips{margin-top:12px}
+/* мини-плашка стадии, на которой упало (на табло) */
+.bfell{
+  font:700 clamp(11px,1.25vh,15px)/1 var(--mono); font-style:normal; letter-spacing:.06em;
+  text-transform:uppercase; color:#fff; background:var(--alert-deep);
+  border-radius:99px; padding:.28em .6em; margin-right:.5em; white-space:nowrap;
+}
+.bstg em{font-style:normal; opacity:.85}
 .dep.run .bpipe{margin:10px 0 2px}
 .dep .bstg{font-size:11px; padding:5px 9px}
 .dep .barr{font-size:12px}
 .bpos .bspin{vertical-align:middle}
 .dmod{font:600 15px/1.35 var(--sans); margin:0 0 6px}
 .dmod.ok{color:var(--accent)}
-.dmod.fail{color:var(--alert)}
+.dmod.fail{color:var(--alert-deep)}
 /* общий счёт в строке дашборда игрока */
 .dscore{font:700 15px/1 var(--mono); color:var(--accent); margin-left:.3em}
 
@@ -356,7 +375,7 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
 .tbl tr:last-child td{border-bottom:0}
 .tbl tr.mine{background:var(--r1soft)}
 .tbl .d{display:block; font:400 10px var(--mono); color:var(--muted)}
-.tbl .d.bad{color:var(--alert)}
+.tbl .d.bad{color:var(--alert-deep)}
 .legend{font:400 11px/1.5 var(--mono); color:var(--muted); margin-top:10px}
 .fl{margin:0 0 12px; font-size:17px}
 .board{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 12px; text-align:center; margin-top:18px}
@@ -396,7 +415,7 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
 .card .stat .k{color:var(--muted)}
 .card .stat .num{color:var(--ink)}
 .card .stat .num.low{color:var(--r0-deep)}
-.card .stat .num.neg{color:var(--alert)}
+.card .stat .num.neg{color:var(--alert-deep)}
 .card .stat .u{color:var(--muted)}
 
 /* ============================ ТАБЛО (общий экран) ============================
@@ -468,7 +487,7 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
   flex:0 0 auto; text-align:center; color:var(--accent);
   font:700 clamp(40px,13vh,150px)/1 var(--mono); letter-spacing:.04em;
 }
-.btimer.low{color:var(--alert)}
+.btimer.low{color:var(--alert-deep)}
 
 /* --- плитки команд в лобби --- */
 .bteams{
@@ -619,6 +638,7 @@ body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); 
 .bstg.on{background:var(--accent); border-color:var(--accent); color:#fff}
 .bstg.bad{background:var(--alert-deep); border-color:var(--alert-deep); color:#fff}
 .bstg.now{background:#fff; border-color:var(--r0); box-shadow:inset 0 0 0 2px var(--r0); color:var(--ink)}
+.bstg.again{box-shadow:inset 0 0 0 2px var(--r0)}
 .barr{
   flex:0 0 auto; font:700 clamp(12px,1.45vh,18px)/1 var(--mono); font-style:normal;
   color:var(--ink-2); opacity:.55;

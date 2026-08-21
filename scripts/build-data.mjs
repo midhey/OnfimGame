@@ -264,7 +264,11 @@ export const COMBAT_INCIDENTS = ROUNDS
   .reduce((n, r) => n + Math.min(r.perTeam, r.pool.length), 0);
 `);
 
-fs.writeFileSync(OUT, parts.join('\n'));
+/* пишем через временный файл: на Windows перезапись занятого data.js
+   иногда падает с UNKNOWN, а переименование проходит */
+const tmp = OUT + '.tmp';
+fs.writeFileSync(tmp, parts.join('\n'));
+fs.renameSync(tmp, OUT);
 
 /* --------------------------------------------------------------- отчёт */
 console.log('данные собраны из ' + files.length + ' файлов, задач всего: ' + allTasks.length + '\n');

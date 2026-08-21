@@ -8,8 +8,8 @@ const left = computed(() => timerLeft());
 
 const label = computed(() => {
   const x = v.value;
-  if (x.phase === 'lobby') return 'Смена не начата';
-  if (x.phase === 'final') return 'Смена закончена';
+  if (x.phase === 'lobby') return 'День не начат';
+  if (x.phase === 'final') return 'Неделя закончена';
   const r = x.round;
   if (!r) return '';
   let s = r.trial ? 'Разминка' : 'Раунд ' + x.roundIndex + ' из ' + (x.roundsTotal - 1);

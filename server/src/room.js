@@ -189,11 +189,11 @@ export class Room {
     this.roundEndsAt = Date.now() + r.minutes * 60 * 1000;
     for (const team of this.activeTeams()) this.ensureRound(team);
     this.log('Начался день «' + r.title + '»: по ' + (r.perTeam || 1) +
-      ' задач на команду, ' + r.minutes + ' мин таймера, ' + r.budget + ' минут смены');
+      ' задач на команду, ' + r.minutes + ' мин таймера, ' + r.budget + ' минут дня');
   }
 
   start() {
-    if (this.phase !== 'lobby') return 'Смена уже идёт';
+    if (this.phase !== 'lobby') return 'Занятие уже идёт';
     if (!this.activeTeams().length) return 'Ни одной команды с игроками';
     this.startRoundAll(0);
     return null;
@@ -266,7 +266,8 @@ export class Room {
       this.log(
         res.ok
           ? 'деплой прошёл: «' + res.name + '»'
-          : 'ДЕПЛОЙ УПАЛ: «' + res.name + '» — ' + res.flaw + ', доверие −' + RULES.deployFailTrust,
+          : 'ДЕПЛОЙ УПАЛ на стадии «' + res.stageName + '»: «' + res.name + '» — ' +
+            res.flaw + ', доверие −' + RULES.deployFailTrust,
         team.name
       );
     }
@@ -316,7 +317,7 @@ export class Room {
     }
     if (this.roundIndex >= ROUNDS.length - 1) {
       this.phase = 'final';
-      this.log('Смена закончена');
+      this.log('Неделя закончена');
       return null;
     }
     this.startRoundAll(this.roundIndex + 1);
@@ -380,7 +381,12 @@ export class Room {
       stepRoles: chain.map((s) => s.role),
       modulesReady: team.modules.length,
       picked: team.activated !== null,
-      deploy: team.deploy ? { ok: team.deploy.ok, name: team.deploy.name, flaw: team.deploy.flaw } : null,
+      deploy: team.deploy ? {
+        ok: team.deploy.ok, name: team.deploy.name, flaw: team.deploy.flaw,
+        stage: team.deploy.stage, stageName: team.deploy.stageName, what: team.deploy.what,
+        who: team.deploy.who, pick: team.deploy.pick, better: team.deploy.better,
+        retry: team.deploy.retry
+      } : null,
       roundDone: team.roundDone,
       lost: team.lost,
       cut: team.cutByTimer,

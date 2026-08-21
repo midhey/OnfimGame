@@ -19,8 +19,8 @@ const times = (n) => {
     <StatBar />
     <div class="view">
       <div class="pane">
-        <div class="kicker">Смена закончена</div>
-        <h1>{{ mine ? mine.name : 'Смена' }}</h1>
+        <div class="kicker">Неделя закончена</div>
+        <h1>{{ mine ? mine.name : 'Итоги недели' }}</h1>
         <template v-if="mine">
           <p class="fl">
             Вы уточняли, прежде чем действовать:
@@ -33,7 +33,7 @@ const times = (n) => {
             запас минут: <b class="mono">{{ mine.spare }}</b>
           </p>
           <div class="board">
-            <div class="bc">Очки за смену · место {{ mine.rank }} из {{ (v.rating || []).length }}</div>
+            <div class="bc">Очки за неделю · место {{ mine.rank }} из {{ (v.rating || []).length }}</div>
             <div class="bl">{{ mine.score }}</div>
             <div class="bg">уточнения {{ mine.asks }}/{{ v.combatTotal }} · доверие {{ mine.trust }} · модули {{ mine.okModules }} · запас {{ mine.spare }}</div>
           </div>
@@ -46,7 +46,7 @@ const times = (n) => {
       </div>
     </div>
     <div class="act">
-      <div class="ask" style="text-align:center">Смена закончена. Дальше — разбор у ведущего.</div>
+      <div class="ask" style="text-align:center">Неделя закончена. Дальше — разбор у ведущего.</div>
     </div>
   </div>
 </template>
